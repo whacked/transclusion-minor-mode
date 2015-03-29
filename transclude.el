@@ -43,7 +43,8 @@
       (other-window -1)
       (goto-line line-to-visit)
       (recenter-top-bottom))))
-(global-set-key "\C-cE" 'myembed)
+;; never actually used this...
+;; (global-set-key "\C-cE" 'myembed-split-window)
 
 ;; ref http://emacs.stackexchange.com/a/358
 (defvar transclude-mode-map (make-sparse-keymap)
