@@ -408,7 +408,7 @@
             (beginning-of-line 1)
             (looking-at (concat
                          ;; take regexp from org.el:org-edit-special
-                         "\\(?:#\\+\\(?:setupfile\\|include\\):?[ \t]+\"?\\|[ \t]*<include\\>.*?file=\"\\)\\([^\"\n>]+\\)"
+                         "^[ \t]*\\(?:#\\+\\(?:setupfile\\|include\\):?[ \t]+\"?\\|[ \t]*<include\\>.*?file=\"\\)\\([^\"\n>]+\\)"
                          ;; sloppily match :lines ### portion
                          ".+\\(?::lines\\)[ \t]+\\([0-9]*\\)[-~ ]\\([0-9]*\\)")))
       (let* ((file-to-visit (expand-file-name (org-trim (match-string 1))))
