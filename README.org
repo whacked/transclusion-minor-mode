@@ -6,6 +6,10 @@ basically a trimmed down version of [[https://github.com/gregdetre/emacs-freex][
 
 made primarily to work with org-mode files
 
+what it's supposed to do
+
+[[http://giant.gfycat.com/FlimsyDampIrishsetter.gif]]
+
 playground
 
 #+INCLUDE: "transclude.el" :lines 1-10
