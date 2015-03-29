@@ -10,7 +10,7 @@
 
 ;; TODO: give more unified name + cleanup
 ;; moved in from old dot
-(defun myembed ()
+(defun myembed-split-window ()
   "prototype embed buffer fn for editing #+INCLUDE files 'in-place'"
   (interactive)
   (when (save-excursion
@@ -45,7 +45,6 @@
       (recenter-top-bottom))))
 (global-set-key "\C-cE" 'myembed)
 
-
 ;; ref http://emacs.stackexchange.com/a/358
 (defvar transclude-mode-map (make-sparse-keymap)
   "Keymap while transclude-mode is active.")
@@ -66,6 +65,8 @@
         (add-to-list 'minor-mode-map-alist mykeys))))
 (ad-activate 'load)
 
+
+;; FIXME change turn-on / turn-off naming to easier toggle
 ;;;###autoload
 (defun turn-on-transclude-mode ()
   "Turns on transclude-mode."
@@ -103,6 +104,17 @@
 
 (setq freex-color-base "#000000")
 (setq freex-color-modified "#331111")
+
+(defun freex-get-overlay-at-point ()
+  (interactive)
+  (let ((ov-list (overlays-at (point)))
+        rtn)
+    (while ov-list
+      (let ((ov (car ov-list)))
+        (if (overlay-get ov 'is-freex-embed)
+            (setq rtn ov)))
+      (setq ov-list (cdr ov-list)))
+    rtn))
 
 (defun freex-close-overlay (pos)
   (interactive (list (point)))
@@ -298,8 +310,6 @@
   )
 
 
-(define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
-
 (defun overlay-mark-as-modified
     (overlay is-post start end &optional replaced-length)
   "This is the function that gets called by the overlay's
@@ -378,6 +388,35 @@
                      (buffer-local-value 'freex-active-source-file-list (current-buffer))
                      ))
         ov))))
+
+(defun nonzero-or-nil (s)
+  (let ((num (string-to-number s)))
+    (cond ((= 0 num)
+           nil)
+          (t num))))
+
+;; NOTE FIXME XXX header parsing is C&P from myembed above
+(defun freex-toggle-embed ()
+  "prototype embed buffer fn for editing #+INCLUDE files 'in-place'"
+  (interactive)
+  (if (freex-get-overlay-at-point)
+      (freex-close-overlay (point))
+    ;; assume we are at a useful header
+    (when (save-excursion
+            (beginning-of-line 1)
+            (looking-at (concat
+                         ;; take regexp from org.el:org-edit-special
+                         "\\(?:#\\+\\(?:setupfile\\|include\\):?[ \t]+\"?\\|[ \t]*<include\\>.*?file=\"\\)\\([^\"\n>]+\\)"
+                         ;; sloppily match :lines ### portion
+                         ".+\\(?::lines\\)[ \t]+\\([0-9]*\\)[-~ ]\\([0-9]*\\)")))
+      (let* ((file-to-visit (org-trim (match-string 1)))
+             (line-start (nonzero-or-nil (match-string 2)))
+             (line-end   (nonzero-or-nil (match-string 3))))
+        (forward-line 1)
+        (freex-create-overlay (point) file-to-visit line-start line-end)))))
+
+(define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
+(define-key transclude-mode-map (kbd "C-c E") 'freex-toggle-embed)
 
 
 (provide 'transclude-mode)
