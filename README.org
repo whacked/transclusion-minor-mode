@@ -8,6 +8,6 @@ made primarily to work with org-mode files
 
 playground
 
-#+INCLUDE: "~/Dropbox/devsync/transclusion-minor-mode/transclude.el" :lines 1-10
+#+INCLUDE: "transclude.el" :lines 1-10
 
 
