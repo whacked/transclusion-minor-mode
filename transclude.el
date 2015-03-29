@@ -89,8 +89,10 @@
 (defun sweep-and-refresh-matching-overlay (source-filepath)
   (let ((check-buffer-list (buffer-list)))
     (while check-buffer-list
-      (if (string= source-filepath
-                   (buffer-file-name (car check-buffer-list)))
+      (if (and (buffer-file-name (car check-buffer-list))
+               (string= source-filepath
+                        (expand-file-name
+                         (buffer-file-name (car check-buffer-list)))))
           (let ((now-buf (current-buffer)))
             (switch-to-buffer (car check-buffer-list))
             (revert-buffer nil t)
@@ -155,7 +157,7 @@
   ;; refresh the overlays in that buffer
   ;; (say "保存 1")
   (let* ((src-buf (current-buffer))
-         (source-filepath (buffer-file-name src-buf)))
+         (source-filepath (expand-file-name (buffer-file-name src-buf))))
     (let ((check-buffer-list (buffer-list)))
       (while check-buffer-list
         (let ((tgt-buf (car check-buffer-list)))
@@ -262,7 +264,7 @@
           (freex-overlay-set-modified-status freex-ov nil)
           (set-buffer-modified-p current-modified-p)
           (message (format "saved %s" (overlay-get freex-ov 'full-filename))))
-      (let ((current-filepath (buffer-file-name (current-buffer))))
+      (let ((current-filepath (expand-file-name (buffer-file-name (current-buffer)))))
         ;; "normal" save
         ;; go through all current overlays, exclude all freex overlays,
         ;; and write out the resulting text (sans freex overlay texts)
@@ -409,7 +411,7 @@
                          "\\(?:#\\+\\(?:setupfile\\|include\\):?[ \t]+\"?\\|[ \t]*<include\\>.*?file=\"\\)\\([^\"\n>]+\\)"
                          ;; sloppily match :lines ### portion
                          ".+\\(?::lines\\)[ \t]+\\([0-9]*\\)[-~ ]\\([0-9]*\\)")))
-      (let* ((file-to-visit (org-trim (match-string 1)))
+      (let* ((file-to-visit (expand-file-name (org-trim (match-string 1))))
              (line-start (nonzero-or-nil (match-string 2)))
              (line-end   (nonzero-or-nil (match-string 3))))
         (forward-line 1)
