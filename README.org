@@ -1,0 +1,13 @@
+transclusion minor-minor mode
+
+work in progress in progress.
+
+basically a trimmed down version of [[https://github.com/gregdetre/emacs-freex][emacs-freex mode]]'s embedding mechanism
+
+made primarily to work with org-mode files
+
+playground
+
+#+INCLUDE: "~/Dropbox/devsync/transclusion-minor-mode/transclude.el" :lines 1-10
+
+
