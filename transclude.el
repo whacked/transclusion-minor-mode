@@ -8,7 +8,8 @@
 ;; TODO
 ;; [X] change switch-to-buffer to set-buffer when possible
 ;; [ ] update line parsing code to use orgmode functions
-;; [ ] prevent opening a transclude overlay when one is already present
+;; [X] prevent opening a transclude overlay when one is already present
+;;     --> rudimentary detection in freex-toggle-embed()
 
 ;; XXX debug
 ;; (defun say (what-to-say) (shell-command (format "say %s" what-to-say)))
@@ -404,8 +405,11 @@
       (let* ((file-to-visit (expand-file-name (org-trim (match-string 1))))
              (line-start (nonzero-or-nil (match-string 2)))
              (line-end   (nonzero-or-nil (match-string 3))))
-        (forward-line 1)
-        (freex-create-overlay (point) file-to-visit line-start line-end)))))
+        (if (member file-to-visit (buffer-local-value 'freex-active-source-file-list (current-buffer)))
+            (message "overlay is already activated")
+          (progn
+            (forward-line 1)
+            (freex-create-overlay (point) file-to-visit line-start line-end)))))))
 
 (define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
 (define-key transclude-mode-map (kbd "C-c E") 'freex-toggle-embed)
