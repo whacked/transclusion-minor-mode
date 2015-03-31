@@ -71,20 +71,6 @@
         (add-to-list 'minor-mode-map-alist mykeys))))
 (ad-activate 'load)
 
-
-;; FIXME change turn-on / turn-off naming to easier toggle
-;;;###autoload
-(defun turn-on-transclude-mode ()
-  "Turns on transclude-mode."
-  (interactive)
-  (transclude-mode t))
-
-;;;###autoload
-(defun turn-off-transclude-mode ()
-  "Turns off transclude-mode."
-  (interactive)
-  (transclude-mode -1))
-
 ;;;###autoload
 (define-globalized-minor-mode global-transclude-mode transclude-mode turn-on-transclude-mode)
 
