@@ -6,8 +6,9 @@
 ;;   outside of emacs
 
 ;; TODO
-;; [ ] change switch-to-buffer to set-buffer when possible
+;; [X] change switch-to-buffer to set-buffer when possible
 ;; [ ] update line parsing code to use orgmode functions
+;; [ ] prevent opening a transclude overlay when one is already present
 
 ;; XXX debug
 ;; (defun say (what-to-say) (shell-command (format "say %s" what-to-say)))
@@ -99,9 +100,8 @@
                         (expand-file-name
                          (buffer-file-name (car check-buffer-list)))))
           (let ((now-buf (current-buffer)))
-            (switch-to-buffer (car check-buffer-list))
-            (revert-buffer nil t)
-            (switch-to-buffer now-buf)))
+            (set-buffer (car check-buffer-list))
+            (revert-buffer nil t)))
       (setq check-buffer-list (cdr check-buffer-list)))))
 
 (setq freex-active-source-file-list nil)
@@ -172,8 +172,7 @@
                 (message (format "->>> MATCH ->>> %s FROM %s\n"
                                  (buffer-name tgt-buf)
                                  source-filepath))
-                
-                (switch-to-buffer tgt-buf)
+                (set-buffer tgt-buf)
                 (let ((ov-list (overlays-in 0 (buffer-size)))
                       target-ov)
                   (while ov-list
@@ -187,9 +186,9 @@
                              (line-end   (overlay-get target-ov 'line-end))
                              (pos-start (overlay-start target-ov))
                              (pos-end   (overlay-end target-ov))
-                             (updated-text (progn (switch-to-buffer src-buf)
+                             (updated-text (progn (set-buffer src-buf)
                                                   (get-text-between-2-line-index line-start line-end))))
-                        (switch-to-buffer tgt-buf)
+                        (set-buffer tgt-buf)
                         ;; wipe the overlay contents and repopulate
                         (save-excursion
                           (goto-char pos-start)
@@ -202,8 +201,7 @@
                           (delete-region (point)
                                          (+ -1 (point) (- pos-end pos-start)))
                           (freex-overlay-set-modified-status target-ov nil)))
-                    ))
-                (switch-to-buffer src-buf))
+                    )))
             ))
         (setq check-buffer-list (cdr check-buffer-list))))))
 
