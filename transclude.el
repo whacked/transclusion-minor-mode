@@ -5,6 +5,10 @@
 ;; - does not have logic that handles source file modifications
 ;;   outside of emacs
 
+;; TODO
+;; [ ] change switch-to-buffer to set-buffer when possible
+;; [ ] update line parsing code to use orgmode functions
+
 ;; XXX debug
 ;; (defun say (what-to-say) (shell-command (format "say %s" what-to-say)))
 
@@ -257,7 +261,8 @@
           ;; loop in all current open files
           ;; if file is same as overlay source file
           ;; add save hook so that
-          ;; [ ] on save of that source file, overlay is updated
+          ;; [X] on save of that source file, overlay is updated
+          ;;     --> should be handled by freex-update-active-overlay-list()
           ;; [X] on save of overlay, source file is updated
           (sweep-and-refresh-matching-overlay source-filepath)
           
