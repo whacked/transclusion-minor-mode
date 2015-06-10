@@ -10,6 +10,8 @@
 ;; [ ] update line parsing code to use orgmode functions
 ;; [X] prevent opening a transclude overlay when one is already present
 ;;     --> rudimentary detection in freex-toggle-embed()
+;; [ ] can we change all while to pop?
+
 
 ;; XXX debug
 ;; (defun say (what-to-say) (shell-command (format "say %s" what-to-say)))
@@ -56,6 +58,8 @@
 (defvar transclude-mode-map (make-sparse-keymap)
   "Keymap while transclude-mode is active.")
 
+;; ref http://emacs.stackexchange.com/questions/352/how-to-override-major-mode-bindings
+;; ref http://nullprogram.com/blog/2013/02/06/
 ;;;###autoload
 (define-minor-mode transclude-mode
   "A minor mode so that my key settings override annoying major modes."
@@ -78,6 +82,17 @@
 ;; Turn off the minor mode in the minibuffer
 (add-hook 'minibuffer-setup-hook 'turn-off-transclude-mode)
 
+;;;###autoload
+(defun turn-on-transclude-mode ()
+  "Turns on my-mode."
+  (interactive)
+  (transclude-mode t))
+
+;;;###autoload
+(defun turn-off-transclude-mode ()
+  "Turns off my-mode."
+  (interactive)
+  (transclude-mode -1))
 
 (defun sweep-and-refresh-matching-overlay (source-filepath)
   (let ((check-buffer-list (buffer-list)))
@@ -313,7 +328,7 @@
       (set-buffer-modified-p current-modified-p))))
 
 ;; TODO
-;; make line-start and line-end work
+;; [X] make line-start and line-end work (prelim)
 (defun freex-create-overlay
     (beg source-filepath line-start line-end)
   (let ((properties (list 'full-filename source-filepath
@@ -336,7 +351,15 @@
           ;; the edges
           (source-text (with-temp-buffer
                          (insert-file-contents source-filepath)
-                         (buffer-string)))
+                         (let ((pt-start (progn
+                                           (goto-line (or (null line-start) 1))
+                                           (point)))
+                               (pt-end   (progn
+                                           (if (null line-end)
+                                               (end-of-buffer)
+                                             (goto-line (1+ line-end)))
+                                           (point))))
+                           (buffer-substring pt-start pt-end))))
           (modified-p (buffer-modified-p)))
       
       ;; add any optional properties to it, unless the
