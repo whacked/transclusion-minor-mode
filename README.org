@@ -14,4 +14,37 @@ playground
 
 #+INCLUDE: "transclude.el" :lines 1-10
 
+#+INCLUDE: "transclude.el" :lines "1-10"
 
+#+INCLUDE: "transclude.el" :lines "1-"
+
+# check link syntax? [[*also%20see][also see:1-9]]
+
+#+INCLUDE: "random-test.txt" :lines 1-
+
+* also see
+
+  http://stackoverflow.com/questions/15328515/iso-transclusion-in-emacs-org-mode
+  
+  http://stackoverflow.com/a/15352203
+
+  #+BEGIN_SRC emacs-lisp :results none
+    (defun org-dblock-write:transclusion (params)
+      (progn
+        (with-temp-buffer
+          (insert-file-contents (plist-get params :filename))
+          (let ((range-start (or (plist-get params :min) (line-number-at-pos (point-min))))
+                (range-end (or (plist-get params :max) (line-number-at-pos (point-max)))))
+            (copy-region-as-kill (line-beginning-position range-start)
+                                 (line-end-position range-end))))
+        (yank)))
+  #+END_SRC
+  
+  Then to include a line range from a given file, you can create a dynamic block like so:
+  
+  #+BEGIN: transclusion :filename "transclude.el" :min 2 :max 4
+  #+END:
+
+** Joh Kitchin's version (requires org-mode 9)
+
+   see [[file:transcluding-org-elements.org]]
