@@ -45,6 +45,30 @@ playground
   #+BEGIN: transclusion :filename "transclude.el" :min 2 :max 4
   #+END:
 
-** Joh Kitchin's version (requires org-mode 9)
+** John Kitchin's version (requires org-mode 9)
 
    see [[file:transcluding-org-elements.org]]
+   
+* using org-mode MACRO syntax instead of INCLUDE
+
+  with [[http://orgmode.org/manual/Macro-replacement.html][org macros]] this seems to be a better option.
+
+  see https://github.com/fniessen/org-macros/blob/master/org-macros.setup
+
+  To test this, run the org-mode export process (e.g. =C-c C-e= then
+  =h H= or =t A=), then find the text from =LICENSE= exported as well.
+
+  TODO: figure out how to make this org-compatible. Right now it is
+  trivially easy to cause export-time conflicts due to =eval=
+
+** org-mode export interop test
+
+#+MACRO: transclude (eval (with-temp-buffer (insert-file-contents "$1" nil $2 $3) (buffer-string)))
+
+partial transclusion
+
+{{{transclude(LICENSE,60,500)}}}
+
+the whole thing
+
+{{{transclude(LICENSE)}}}
