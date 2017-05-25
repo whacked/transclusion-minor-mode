@@ -1,0 +1,52 @@
+https://www.mail-archive.com/emacs-orgmode@gnu.org/msg110355.html
+
+#+name: test
+| 555 | 66      |
+|  te | tef     |
+| 555 | ftre 5f |
+| 555 | ftre 5f |
+
+This link will display the table.
+
+[[transclude:file:transcluding-org-elements.org::test]]
+
+This link will display the headline named archive.
+
+[[transclude:file:transcluding-org-elements.org::*archive]]
+
+
+Here is the code. 
+
+#+BEGIN_SRC emacs-lisp :results silent
+  (defvar *transclude* t "Put overlays on or not")
+  (setq *transclude* t)
+
+  (org-link-set-parameters
+   "transclude"
+   :face '(:background "gray80")
+   :follow (lambda (path)
+             (org-open-link-from-string path))
+   :keymap (let ((map (copy-keymap org-mouse-map)))
+             (define-key map [C-mouse-1] (lambda ()
+                                           (interactive)
+                                           (setq *transclude* (not *transclude*))
+                                           (unless *transclude*
+                                             (ov-clear 'transclude))
+                                           (font-lock-fontify-buffer)))
+             map)
+   :help-echo "Transcluded element. Click to open source. C-mouse-1 to toggle overlay."
+   :activate-func (lambda (start end path bracketp)
+                    (if *transclude*
+                        (let ((ov (make-overlay start end))
+                              el disp)
+                          (ov-put ov 'transclude t)
+                          (save-window-excursion
+                            (org-open-link-from-string path)
+                            (setq el (org-element-context))
+                            (setq disp (buffer-substring
+                                        (org-element-property :begin el)
+                                        (- (org-element-property :end el)
+                                           (or (org-element-property :post-blank el) 0))))
+                            (ov-put ov 'display disp)))
+                      (ov-clear 'transclude 'any start end))))
+#+END_SRC
