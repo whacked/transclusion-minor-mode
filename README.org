@@ -1,4 +1,4 @@
-transclusion minor-minor mode
+* transclusion minor-minor mode
 
 work in progress in progress.
 
@@ -6,11 +6,11 @@ basically a trimmed down version of [[https://github.com/gregdetre/emacs-freex][
 
 made primarily to work with org-mode files
 
-what it's supposed to do
+** what it's supposed to do
 
 [[http://giant.gfycat.com/FlimsyDampIrishsetter.gif]]
 
-playground
+** playground
 
 #+INCLUDE: "transclude.el" :lines 1-10
 
@@ -24,27 +24,45 @@ playground
 
 * also see
 
-  http://stackoverflow.com/questions/15328515/iso-transclusion-in-emacs-org-mode
-  
-  http://stackoverflow.com/a/15352203
+** using org dynamic blocks
 
-  #+BEGIN_SRC emacs-lisp :results none
-    (defun org-dblock-write:transclusion (params)
-      (progn
-        (with-temp-buffer
-          (insert-file-contents (plist-get params :filename))
-          (let ((range-start (or (plist-get params :min) (line-number-at-pos (point-min))))
-                (range-end (or (plist-get params :max) (line-number-at-pos (point-max)))))
-            (copy-region-as-kill (line-beginning-position range-start)
-                                 (line-end-position range-end))))
-        (yank)))
-  #+END_SRC
+   http://stackoverflow.com/questions/15328515/iso-transclusion-in-emacs-org-mode
   
-  Then to include a line range from a given file, you can create a dynamic block like so:
-  
-  #+BEGIN: transclusion :filename "transclude.el" :min 2 :max 4
-  #+END:
+   http://stackoverflow.com/a/15352203
 
+   #+BEGIN_SRC emacs-lisp :results none
+     (defun org-dblock-write:transclusion (params)
+       (progn
+         (with-temp-buffer
+           (insert-file-contents (plist-get params :filename))
+           (let ((range-start (or (plist-get params :min) (line-number-at-pos (point-min))))
+                 (range-end (or (plist-get params :max) (line-number-at-pos (point-max)))))
+             (copy-region-as-kill (line-beginning-position range-start)
+                                  (line-end-position range-end))))
+         (yank)))
+   #+END_SRC
+  
+   Then to include a line range from a given file, you can create a dynamic block like so:
+  
+   #+BEGIN: transclusion :filename "transclude.el" :min 2 :max 4
+   #+END:
+
+   =C-c C-x C-u= (=org-dblock-update=) will on the =BEGIN/END= block
+   updates that block; =org-update-all-dblocks= does all in the
+   buffer.
+
+   *This is an unsatisfactory solution* because it is actually just
+   unidirectional /quasi-dynamic inclusion/; /quasi/, because the
+   update step has no knowledge of the target /until/ the update is
+   invoked. It is possible to add action hooks to run updates
+   automatically, but that is no different from export-time inclusion,
+   which by nature assumes a unidirectional /flow/ of information. Org
+   already has a number of ways to achieve this, such as a =sh= src
+   block that runs =cat=.
+   
+   Transclusion is different in practice: it is the /actual content,
+   appearing/ at the location of transclusion.
+   
 ** John Kitchin's version (requires org-mode 9)
 
    see [[file:transcluding-org-elements.org]]
@@ -63,6 +81,8 @@ playground
 
 ** org-mode export interop test
 
+   using org's native macro facility in normal org export
+
 #+MACRO: transclude (eval (with-temp-buffer (insert-file-contents "$1" nil $2 $3) (buffer-string)))
 
 partial transclusion
@@ -72,3 +92,162 @@ partial transclusion
 the whole thing
 
 {{{transclude(LICENSE)}}}
+
+* transclusion addressing syntax
+
+  primary consideration is edit-time user friendliness;
+
+  for accuracy, [[https://github.com/whacked/SPRI/blob/experimental/lib/resolution/text.sibilant#make-anchor][fuzzy text anchors]] should be used
+
+** full
+
+  {{{transclude(file:tiny.org)}}}
+
+** line
+
+  {{{transclude(file:tiny.org:5)}}}
+
+*** line range
+
+   {{{transclude(file:tiny.org:2-3)}}}
+  
+*** from start
+
+   {{{transclude(file:tiny.org:-2)}}}
+
+*** until end
+
+   {{{transclude(file:tiny.org:7-)}}}
+
+** character index range
+   
+*** character range
+
+    {{{transclude(file:tiny.org:0,100)}}}
+
+*** from start
+
+    {{{transclude(file:tiny.org:,100)}}}
+
+*** until end
+
+    {{{transclude(file:tiny.org:50,)}}}
+
+** percent range
+
+   convert to line first
+
+   {{{transclude(file:moozorgjs.org:1%-3%)}}}
+
+** contextual target
+   
+*** native org links
+
+    {{{transclude(file:tiny.org::*decoy 1)}}}
+
+*** fuzzy file resolution -> org
+
+    these should all resolve to
+    
+    [[file:tiny.org::*huh][huh]]
+
+**** glob file name
+
+     {{{transclude(file:t*ny.org::*huh)}}}
+
+**** fuzzy find file by name
+
+     {{{transclude(file:?tiny+.org::*huh)}}}
+
+**** fuzzy find file by content
+
+     {{{transclude(grep:gg+you::*huh)}}}
+
+     {{{transclude(grep:gg you::*huh)}}}
+
+     {{{transclude(grep:gg%20you::*huh)}}}
+
+* constriction syntax
+
+  a better term than /constriction/ / /constrictor/ probably exists
+
+** content based range constriction
+
+   address like:
+
+   file:$RESOLVER#$constrictor
+
+   where $constrictor ...
+
+** examples using moozorgjs.org
+
+
+*** nearest token set
+
+    $RESOLVER#handling todo
+
+    resolve to [[file:moozorgjs.org::*Handling%20TODO][Handling TODO]]
+
+    via first + best sequential match
+
+*** nearest statement / line
+
+    =$RESOLVER#line/support+scheduled=
+
+    resolve to the line,
+
+    "Support attributes like ~SCHEDULED:~."
+
+    [[file:moozorgjs.org::*Implement%20todo%20attributes][Implement todo attributes]]
+
+*** nearest paragraph
+
+    =$RESOLVER#para/org.js parser converter=
+
+    intro paragraph
+
+    [[file:moozorgjs.org][intro paragraph]]
+
+*** nearest hierarchical section
+
+    need org context
+
+    =$RESOLVER#section/web browser=
+
+    Web Browser
+
+    [[file:moozorgjs.org::*Web%20Browser][Web Browser]]
+
+*** HARD nearest conceptual unit
+     
+    *hardest* -- need broader semantic analysis
+
+    =$RESOLVER#unit/require org=
+
+    require("org")
+
+    the src block with "require" within
+
+    [[file:moozorgjs.org::*Node.js][Node.js]]
+     
+* decoy headers
+
+** real thing
+
+*** decoy 1
+
+    text in the real
+
+** fake thing
+
+*** decoy 1
+
+    text in the fake
+
+** what does org do?
+
+   (org picks the first occurrence)
+
+[[*decoy 1][decoy 1 (real)]]
+
+[[*decoy 1][decoy 1 (fake)]]
