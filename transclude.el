@@ -111,8 +111,8 @@
 ;; force-set
 ;; (setq-local freex-active-source-file-list (list "/path/to/file.org"))
 
-(setq freex-color-base "#000000")
-(setq freex-color-modified "#331111")
+(setq freex-color-base "#777777")
+(setq freex-color-modified "#993333")
 
 (defun freex-get-overlay-at-point ()
   (interactive)
@@ -453,3 +453,130 @@
 
 (provide 'transclude-mode)
 
+
+;; 2015-06-15 23:18:05
+;; testing transclusion via bracket link syntax for org file internal links.
+;; and potentially parse bracket link description for internal link range.
+;; or just include entire header?
+(defun asdf ()
+  (interactive)
+  ;; ref org.el:org-open-at-point()
+  ;; this is only for bracket links, it is inside the (catch 'match ...) block
+  (when (org-in-regexp org-bracket-link-regexp 1)
+    (setq link (org-extract-attributes
+                (org-link-unescape (org-match-string-no-properties 1))))
+    (while (string-match " *\n *" link)
+      (setq link (replace-match " " t t link)))
+    (setq link (org-link-expand-abbrev link))
+    (cond
+     ((or (file-name-absolute-p link)
+          (string-match "^\\.\\.?/" link))
+      (setq type "file" path link))
+     ((string-match org-link-re-with-space3 link)
+      (setq type (match-string 1 link) path (match-string 2 link)))
+     ((string-match "^help:+\\(.+\\)" link)
+      (setq type "help" path (match-string 1 link)))
+     (t (setq type "thisfile" path link)))
+    (message path)))
+
+
+
+
+
+
+;; 2017-07-07 01:04:04
+;; transclusion inline overlay
+(defun getattr (my-alist key)
+  (cdr (assoc key my-alist)))
+
+(defun parse-constrictor (constrictor)
+  (let* (;; (constrictor "11,80")
+         (spl (split-string constrictor ","))
+         (maybe-from (string-to-number (first spl)))
+         (maybe-to (string-to-number (second spl))))
+    `((:start . ,maybe-from)
+      (:end . ,maybe-to))))
+
+;; (freex-create-overlay (point) "tiny.org" 2 5)
+(let ()
+  (defun transclusion-create-overlay (overlay-start-index
+                                      transclusion-source-filepath
+                                      constrictor)
+    (let* ((a-constrictor (parse-constrictor constrictor))
+           (properties (list 'full-filename transclusion-source-filepath
+                             'line-start 1
+                             'line-end nil))
+           (transclusion-index-from (getattr a-constrictor :start))
+           (transclusion-index-to (getattr a-constrictor :end))
+           (overlay-start-index (point))
+           (overlay-end-index (+ (point)
+                                 (- transclusion-index-to
+                                    transclusion-index-from)))
+           )
+      "simplified from freex-embed-create-overlay, but removed
+     insert-funct, save-funct.
+
+     create an overlay embed at point `from-point` using contents
+     of `source-filepath`
+     "
+      (let ((ov nil)
+            (ov-length (- transclusion-index-to transclusion-index-from))
+            ;; pre-read the source text, instead of using e.g.
+            ;; (insert-file), because without knowing the
+            ;; length of the text, we either resort to
+            ;; creating a rear-advance overlay by calling
+            ;; (make-overlay from-point to-point nil nil t) -- which is
+            ;; what freex did -- else we get strange overlay
+            ;; growing/shrinking effects when editing around
+            ;; the edges
+            (source-text (with-temp-buffer
+                           (insert-file-contents transclusion-source-filepath)
+                           (buffer-substring transclusion-index-from transclusion-index-to)))
+            (modified-p (buffer-modified-p)))
+
+        ;; add any optional properties to it, unless the
+        ;; PROPERTIES list has an even number of items
+        (unless (equal (mod (length properties) 2) 0)
+          (error "Properties list must be even in length"))
+
+        (save-excursion
+          ;; make the overlay consist of a single newline, to
+          ;; begin with
+          (goto-char overlay-start-index)
+
+          (insert source-text)
+        
+          ;; start end
+          ;; buffer (current-buffer)
+          ;; front-advance nil
+          ;; rear-advance nil
+          (setq ov (make-overlay overlay-start-index overlay-end-index))
+        
+          (overlay-put ov 'is-freex-embed t) ;; for freex close control
+          (overlay-put ov 'evaporate t)
+          (overlay-put ov 'rear-nonsticky t)
+        
+          ;; set the color of the text
+          (overlay-put ov 'face
+                       (cons 'background-color
+                             "#FFCCAA"))
+          (while properties
+            (overlay-put ov (pop properties) (pop properties)))
+
+          ;; add the modification hooks (after we have inserted)
+          (overlay-put ov 'modification-hooks
+                       '(overlay-mark-as-modified))
+          ;; set buffer modified to nil if it was not already modified
+          (set-buffer-modified-p modified-p)
+          ;; force overlay to be not modified
+          (freex-overlay-set-modified-status ov nil)
+
+          (setq-local freex-active-source-file-list
+                      (cons
+                       transclusion-source-filepath
+                       (buffer-local-value 'freex-active-source-file-list (current-buffer))))
+          ov))))
+  (transclusion-create-overlay
+   (point)
+   "tiny.org"
+   "2,61"))
