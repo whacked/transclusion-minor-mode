@@ -175,7 +175,9 @@ the whole thing
 
    address like:
 
-   file:$RESOLVER#$constrictor
+   - file:$RESOLVER#$constrictor
+   - https://$RESOLVER#constrictor
+   - =http://example.com/#dummy target#ignore again#This domain...=
 
    where $constrictor ...
 
