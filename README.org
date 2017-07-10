@@ -145,31 +145,38 @@ the whole thing
 
     {{{transclude(file:tiny.org::*decoy 1)}}}
 
-*** fuzzy file resolution -> org
+*** exact match with range
 
-    these should all resolve to
+    {{{transclude(file:tiny.org:in 2101...for great justice)}}}
+
+** fuzzy file resolution -> org
+
+   these should all resolve to
     
-    [[file:tiny.org::*huh][huh]]
+   [[file:tiny.org::*huh][huh]]
 
-**** glob file name
+*** glob file name
 
-     {{{transclude(file:t*ny.org::*huh)}}}
+    {{{transclude(file:t*ny.org::*huh)}}}
 
-**** fuzzy find file by name
+*** fuzzy find file by name
 
-     {{{transclude(file:?tiny+.org::*huh)}}}
+    {{{transclude(file:?tiny+.org::*huh)}}}
 
-**** fuzzy find file by content
+*** fuzzy find file by content
 
-     {{{transclude(grep:gg+you::*huh)}}}
+    {{{transclude(grep:gg+you::*huh)}}}
 
-     {{{transclude(grep:gg you::*huh)}}}
+    {{{transclude(grep:gg you::*huh)}}}
 
-     {{{transclude(grep:gg%20you::*huh)}}}
+    {{{transclude(grep:gg%20you::*huh)}}}
 
 * constriction syntax
 
   a better term than /constriction/ / /constrictor/ probably exists
+
+  the =$constrictor= should fallback to resolution logic of the
+  colon-based content address when no constriction method is found
 
 ** content based range constriction
 
@@ -181,8 +188,7 @@ the whole thing
 
 ** examples using moozorgjs.org
 
-
-*** nearest token set
+*** nearest token set (fallback)
 
     $RESOLVER#handling todo
 
@@ -190,7 +196,13 @@ the whole thing
 
     via first + best sequential match
 
-*** nearest statement / line
+*** token set range (fallback)
+
+    $RESOLVER#in 2101...for great justice
+
+*** =line=: nearest statement / line
+
+    possibly just =L=
 
     =$RESOLVER#line/support+scheduled=
 
@@ -200,7 +212,9 @@ the whole thing
 
     [[file:moozorgjs.org::*Implement%20todo%20attributes][Implement todo attributes]]
 
-*** nearest paragraph
+*** =para=: nearest paragraph
+
+    possibly just =P=
 
     =$RESOLVER#para/org.js parser converter=
 
@@ -208,7 +222,7 @@ the whole thing
 
     [[file:moozorgjs.org][intro paragraph]]
 
-*** nearest hierarchical section
+*** =section= nearest hierarchical section
 
     need org context
 
@@ -218,7 +232,7 @@ the whole thing
 
     [[file:moozorgjs.org::*Web%20Browser][Web Browser]]
 
-*** HARD nearest conceptual unit
+*** ??? nearest conceptual unit
      
     *hardest* -- need broader semantic analysis
 
