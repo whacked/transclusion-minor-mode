@@ -202,6 +202,9 @@ the whole thing
 
     $RESOLVER#in 2101...for great justice
 
+    - [X] js poc
+    - [ ] emacs poc
+
 *** =line=: nearest statement / line
 
     possibly just =L=
@@ -214,6 +217,9 @@ the whole thing
 
     [[file:moozorgjs.org::*Implement%20todo%20attributes][Implement todo attributes]]
 
+    - [X] js poc
+    - [ ] emacs poc
+
 *** =para=: nearest paragraph
 
     possibly just =P=
@@ -223,6 +229,9 @@ the whole thing
     intro paragraph
 
     [[file:moozorgjs.org][intro paragraph]]
+
+    - [X] js poc
+    - [ ] emacs poc
 
 *** =section= nearest hierarchical section
 
