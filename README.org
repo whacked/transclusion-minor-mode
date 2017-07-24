@@ -188,6 +188,10 @@ the whole thing
 
    where $constrictor ...
 
+** anchor based constriction
+
+   not yet a user friendly way to create anchors in edit phase
+
 ** examples using moozorgjs.org
 
 *** nearest token set (fallback)
@@ -255,7 +259,26 @@ the whole thing
 
     [[file:moozorgjs.org::*Node.js][Node.js]]
      
-* decoy headers
+* post-transclusion processor syntax
+
+  this only makes sense in read-only transclusion
+  
+  the pipe is an obvious choice of "filter" designation, but since it
+  conflicts with org-mode table syntax, the post-processor parsing
+  should also recognize unicode =BROKEN BAR= =¦= as an alternative
+
+  - file:$RESOLVER#$constrictor|post-processor
+  - file:$RESOLVER#$constrictor¦post-processor
+
+** collapse newlines
+
+   this currently makes sense for something transcluded into an org
+   doc where only the text is wanted, but the transclusion target's
+   (host document) location has significant whitespace, such as in an
+   org table. Linebreaks in the source document cause the table to
+   break.
+
+* testing decoy headers
 
 ** real thing
 
