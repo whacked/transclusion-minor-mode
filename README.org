@@ -167,7 +167,7 @@ the whole thing
 
 **** exact match with range
 
-     {{{transclude(file:tiny.org:in 2101...for great justice)}}}
+     {{{transclude(file:tiny.org::in 2101...for great justice)}}}
 
 *** fuzzy file resolution -> org
 
@@ -287,10 +287,10 @@ the whole thing
   
   the pipe is an obvious choice of "filter" designation, but since it
   conflicts with org-mode table syntax, the post-processor parsing
-  should also recognize unicode =BROKEN BAR= =Â¦= as an alternative
+  should also recognize unicode =BROKEN BAR= =¦= as an alternative
 
   - file:$RESOLVER#$constrictor|post-processor
-  - file:$RESOLVER#$constrictorÂ¦post-processor
+  - file:$RESOLVER#$constrictor¦post-processor
 
 ** collapse newlines
 
@@ -299,6 +299,12 @@ the whole thing
    (host document) location has significant whitespace, such as in an
    org table. Linebreaks in the source document cause the table to
    break.
+
+** strip heading
+
+   when the transclusion target is defined by an org headline section, one may want to keep the text only. The address may look like
+
+   =file:somefile.org::*infamous muse of famous mouse¦no-headline=
 
 * testing decoy headers
 
