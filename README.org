@@ -179,10 +179,6 @@ the whole thing
 
      {{{transclude(file:t*ny.org::*huh)}}}
 
-**** fuzzy find file by name
-
-     {{{transclude(file:?tiny+.org::*huh)}}}
-
 **** fuzzy find file by content
 
      {{{transclude(grep:gg+you::*huh)}}}
@@ -327,3 +323,8 @@ the whole thing
 [[*decoy 1][decoy 1 (real)]]
 
 [[*decoy 1][decoy 1 (fake)]]
+
+* testing org-mode compatibility
+
+  - [[file:transcluding-org-elements.org?]]  # opens dired
+  - [[file:transcluding-org-elements.org?s=1]]  # opens dired

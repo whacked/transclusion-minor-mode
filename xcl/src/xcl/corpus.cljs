@@ -1,0 +1,64 @@
+(ns xcl.corpus
+  (:require-macros [xcl.static-loader :as loader]))
+
+(def file-cache
+  {"LICENSE" (loader/slurp-file "LICENSE")
+   "100lines" (->> (range 100)
+                   (map (fn [i]
+                          (str (inc i) " SOME LINE\n")))
+                   (apply str))
+   "_UNLICENSE_" "foo bar\nbaz qux"
+   "tiny.org" (->> ["fake file (line 1)"
+                    "* decoy 1"
+                    "* something third line"
+                    "fourth line"
+                    "1 2 3 4, 5th line"
+                    "six sixths is sick sith"
+                    "seven 7s"
+                    "ocho acht"]
+                   (interpose "\n")
+                   (apply str))
+   "big.org" "another fake file"
+   "fake.org" "some fake information\nto throw you off"
+   "dummy.org" (loader/slurp-file "xcl/public/dummy.org")
+   "_READ.ME.org" "decoy org file"
+   "README.org" (loader/slurp-file "README.org")})
+
+(defn list-files [_fake-directory]
+  (keys file-cache))
+
+(defn load-content [filename]
+  (file-cache filename))
+
+(defmulti get-file-match
+  (fn [_ resolved]
+    (:resource-resolver resolved)))
+
+(defmethod get-file-match :exact-name
+  [candidate-seq resolved]
+  (let [file-name (:path resolved)]
+    (some->> candidate-seq
+             (filter (partial = file-name))
+             (first))))
+
+(defmethod get-file-match :glob-name
+  [candidate-seq resolved]
+  (let [file-pattern (-> (:path resolved)
+                         (clojure.string/replace "*" ".*")
+                         (re-pattern))]
+    (some->> candidate-seq
+             (filter (partial re-find file-pattern))
+             (first))))
+
+(defmethod get-file-match :grep-content
+  [candidate-seq resolved]
+  (let [grep-pattern (-> (:path resolved)
+                         (clojure.string/replace "+" " ")
+                         (clojure.string/replace "%20" " ")
+                         (re-pattern))]
+    (some->> candidate-seq
+             (filter (fn [fname]
+                       (some->> fname
+                                (load-content)
+                                (re-find grep-pattern))))
+             (first))))
