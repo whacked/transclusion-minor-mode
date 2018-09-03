@@ -3,8 +3,10 @@
 
 (defmacro slurp-file
   [fname]
-  (->> fname
-       (io/file
-        (System/getProperty "user.dir")
-        "..")
-       (slurp)))
+  (clojure.string/replace
+   (slurp
+    (io/file
+     (System/getProperty "user.dir")
+     ".."
+     fname))
+   #"\r\n" "\n"))
