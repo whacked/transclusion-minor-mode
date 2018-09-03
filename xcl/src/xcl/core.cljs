@@ -93,13 +93,13 @@
     (make-named-matcher #"s=(\S.+)\.\.\.(\S.+)" [:token-beg :token-end])]
    [:line-with-match
     (make-named-matcher #"line=(\S+)"
-                        [:substring] [web-query-to-string])]
+                        [:query-string] [web-query-to-string])]
    [:paragraph-with-match
     (make-named-matcher #"para=(\S+)"
-                        [:substring] [web-query-to-string])]
+                        [:query-string] [web-query-to-string])]
    [:org-section-with-match
     (make-named-matcher #"section=(\S+)"
-                        [:substring] [web-query-to-string])]
+                        [:query-string] [web-query-to-string])]
    ])
 
 (defn parse [link]

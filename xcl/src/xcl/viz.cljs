@@ -126,23 +126,27 @@
                  :line-with-match
                  "dummy.org"
                  "Support attributes like ~SCHEDULED:~.")]
-           ["constrict by best paragraph" "xcl:dummy.org?para=what+happen"
+           ["constrict by first matching paragraph" "xcl:dummy.org?para=what+happen"
             (RR. :exact-name
                  :paragraph-with-match
                  "dummy.org"
                  "In 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG.")]
-           ["constrict by best section" "xcl:dummy.org?section=famous+script"
+           ["constrict by first matching section" "xcl:dummy.org?section=famous+script"
             (RR. :exact-name
-                 :section-with-match
+                 :org-section-with-match
                  "dummy.org"
-                 "** famous script\n   Captain and CATS\n   \n   In 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG.")]
+                 "** famous script\n\n   Captain and CATS\n   \n   In 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG."
+                 )]
            ]
           (map
            (fn [[desc link expected]]
              (let [received (sc/parse link)
-                   success? (-> received
-                                (select-keys (keys expected))
-                                (= (into {} expected)))]
+                   success? (->> (keys expected)
+                                 (map (fn [k]
+                                        (let [is-equal? (= (k received)
+                                                           (k expected))]
+                                          is-equal?)))
+                                 (every? identity))]
                [:tr
                 [:td
                  {:style {:background-color
