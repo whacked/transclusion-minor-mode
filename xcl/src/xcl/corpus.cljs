@@ -22,7 +22,31 @@
    "fake.org" "some fake information\nto throw you off"
    "dummy.org" (loader/slurp-file "xcl/public/dummy.org")
    "_READ.ME.org" "decoy org file"
-   "README.org" (loader/slurp-file "README.org")})
+   "README.org" (loader/slurp-file "README.org")
+   "xcl-test-1.org" (->> ["* blah blah"
+                          ""
+                          "generic content"
+                          "genetic content"
+                          "{{{transclude(big.org)}}}"
+                          ""
+                          "{{{transclude(dummy.org::*huh)}}}"
+                          ]
+                         (interpose "\n")
+                         (apply str))
+   "xcl-test-2.org" (->> ["* fake file 2"
+                          ""
+                          "random block"
+                          "tandem block"
+                          "{{{transclude(100lines::5-7)}}}"
+                          ""
+                          "{{{transclude(xcl:dummy.org?para=what+happen)}}}"
+                          ]
+                         (interpose "\n")
+                         (apply str))
+   "xcl-test-3-a.org" "content of A!\n\naye aye aye"
+   "xcl-test-3-b.org" "* I am B and I include A\n\n** {{{transclude(xcl:xcl-test-3-a.org)}}}"
+   "xcl-test-3-c.org" "* I am C and I include B\n\n*{{{transclude(xcl:xcl-test-3-b.org)}}}"
+   })
 
 (defn list-files [_fake-directory]
   (keys file-cache))
