@@ -1,10 +1,7 @@
 (ns xcl.core
   (:require [cemerick.url :refer (url url-encode)]
             [xcl.content-interop :as ci]
-            [xcl.common :refer [re-pos conj-if-non-nil]]
-            ;; sample corpus
-            [xcl.corpus :as corpus]
-            ))
+            [xcl.common :refer [re-pos conj-if-non-nil]]))
 
 ;; TODO
 ;; [ ] anchor text deriver
@@ -53,6 +50,39 @@
 (defn web-query-to-string [s]
   (some-> s
           (clojure.string/replace #"%20" " ")))
+
+(defmulti get-file-match
+  (fn [_ _ resolved]
+    (:resource-resolver resolved)))
+
+(defmethod get-file-match :exact-name
+  [candidate-seq-loader content-loader resolved]
+  (let [file-name (:path resolved)]
+    (some->> (candidate-seq-loader)
+             (filter (partial = file-name))
+             (first))))
+
+(defmethod get-file-match :glob-name
+  [candidate-seq-loader content-loader resolved]
+  (let [file-pattern (-> (:path resolved)
+                         (clojure.string/replace "*" ".*")
+                         (re-pattern))]
+    (some->> (candidate-seq-loader)
+             (filter (partial re-find file-pattern))
+             (first))))
+
+(defmethod get-file-match :grep-content
+  [candidate-seq-loader content-loader resolved]
+  (let [grep-pattern (-> (:path resolved)
+                         (clojure.string/replace "+" " ")
+                         (clojure.string/replace "%20" " ")
+                         (re-pattern))]
+    (some->> (candidate-seq-loader)
+             (filter (fn [fname]
+                       (some->> fname
+                                (content-loader)
+                                (re-find grep-pattern))))
+             (first))))
 
 (def org-style-range-matchers
   [[:line-range
@@ -107,7 +137,9 @@
                         [:query-string] [web-query-to-string])]
    ])
 
-(defn parse-link [content-loader link]
+(defn parse-link [candidate-seq-loader
+                  content-loader
+                  link]
   (let [[maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
         
@@ -128,7 +160,8 @@
                               (if (or out
                                       (empty? matcher-remain))
                                 out
-                                (let [[range-type matcher] (first matcher-remain)
+                                (let [[range-type matcher] 
+                                      (first matcher-remain)
                                       maybe-match (matcher maybe-qualifier)]
                                   (recur
                                    (rest matcher-remain)
@@ -149,8 +182,9 @@
                                                   :else :exact-name)
                          :content-resolver (:type content-resolver)
                          :content-boundary (:bound content-resolver)}
-          file-name (corpus/get-file-match
-                     (corpus/list-files "_test")
+          file-name (get-file-match
+                     candidate-seq-loader
+                     content-loader
                      resolved-spec)]
       (assoc resolved-spec
              :file-name file-name
@@ -166,10 +200,12 @@
   (re-pos transclusion-directive-matcher text))
 
 (defn render-transclusion
-  "content-loader should be a function which,
+  "`candidate-seq-loader` should be a function which
+   returns a seq of all the known file names
+   `content-loader` should be a function which,
    when passed the :file-name parameter from a `resolved-spec`,
    returns the full text of the target resource (generally a file)"
-  [content-loader source-text]
+  [candidate-seq-loader content-loader source-text]
   (loop [remain (parse-transclusion-directive source-text)
          prev-index 0
          buffer []]
@@ -182,12 +218,18 @@
                           matched-path]] (first remain)
             interim-string (when (< prev-index match-index)
                              (subs source-text prev-index match-index))
-            resolved-spec (parse-link content-loader matched-path)]
+            resolved-spec (parse-link
+                           candidate-seq-loader
+                           content-loader
+                           matched-path)]
         (recur (rest remain)
                (+ match-index (count matched-string))
                (conj-if-non-nil
                 buffer
                 interim-string
                 (if-let [rendered-string (:match-content resolved-spec)]
-                  (render-transclusion content-loader rendered-string)
+                  (render-transclusion
+                   candidate-seq-loader
+                   content-loader
+                   rendered-string)
                   matched-string)))))))
