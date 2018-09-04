@@ -1,0 +1,15 @@
+* transclusion from javascript
+
+  - resource resolvers
+  - content resolvers
+  
+* test environment setup
+  
+  #+BEGIN_SRC sh :eval never
+  yarn global add shadow-cljs
+  yarn add react create-react-class react-dom
+  shadow-cljs watch browser-sample
+  #+END_SRC
+
+  open the browser to http://localhost:8020/ to load the tests
+  
