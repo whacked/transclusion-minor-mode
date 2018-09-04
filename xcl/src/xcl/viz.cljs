@@ -138,7 +138,11 @@
         ]
        (map
         (fn [[desc link expected]]
-          (let [received (sc/parse-link corpus/load-content link)
+          (let [received (sc/parse-link
+                          (fn [& _]
+                            (corpus/list-files "_test"))
+                          corpus/load-content
+                          link)
                 success? (->> (keys expected)
                               (map (fn [k]
                                      (let [is-equal? (= (k received)
@@ -183,6 +187,8 @@
          (map (fn [[source-file expected]]
                 (let [source-text (corpus/load-content source-file)
                       rendered (sc/render-transclusion
+                                (fn [& _]
+                                  (corpus/list-files "_test"))
                                 corpus/load-content
                                 source-text)
                       is-same? (= expected rendered)]
