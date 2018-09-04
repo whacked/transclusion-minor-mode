@@ -12,4 +12,37 @@
   #+END_SRC
 
   open the browser to http://localhost:8020/ to load the tests
-  
+
+* building for node.js
+
+  #+BEGIN_SRC sh :eval never
+  shadow-cljs release lib-sample
+  #+END_SRC
+
+** example usage
+
+   #+BEGIN_SRC javascript :eval never :tangle test.js :padline no
+     let xcl = require("./build/transclusion.js")
+
+     // corresponds to corpus.cljs
+     const FileCache = {
+         "xcl-test-3-a.org": "content of A!\n\naye aye aye",
+         "xcl-test-3-b.org": "* I am B and I include A\n\n** {{{transclude(xcl:xcl-test-3-a.org)}}}",
+         "xcl-test-3-c.org": "* I am C and I include B\n\n*{{{transclude(xcl:xcl-test-3-b.org)}}}",
+     }
+
+     function list_files() {
+         return Object.keys(FileCache)
+     }
+     function load_content(filename) {
+         return FileCache[filename]
+     }
+
+     console.log("=== INPUT ===")
+     console.log(load_content("xcl-test-3-c.org"))
+     console.log("=== OUTPUT ===")
+     console.log(xcl.render(
+         list_files,
+         load_content,
+         load_content("xcl-test-3-c.org")))
+   #+END_SRC

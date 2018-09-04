@@ -21,6 +21,7 @@
                     :http-port 8020}
                    }
 
-  ;; TODO
-  :lib-sample {:target :npm-module}
+  :lib-sample {:target :node-library
+               :output-to "build/transclusion.js"
+               :exports {:render xcl.core/render-transclusion}}
   }}
