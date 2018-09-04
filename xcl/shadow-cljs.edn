@@ -1,0 +1,26 @@
+{:source-paths
+ ["src"]
+
+ :dependencies
+ [[cider/cider-nrepl "0.16.0-SNAPSHOT"] ;; (cemerick.piggieback/cljs-repl :id-of-build)
+  [reagent "0.8.1"]
+  [com.cemerick/url "0.1.1"]]
+
+ :builds
+ {:browser-sample {:target :browser
+                   :output-dir "public/js"
+                   :asset-path "/js"
+                   
+                   :modules
+                   {:main ;; <- becomes public/js/main.js
+                    {:entries [xcl.viz]}}
+
+                   ;; start a development http server on http://localhost:8020
+                   :devtools
+                   {:http-root "public"
+                    :http-port 8020}
+                   }
+
+  ;; TODO
+  :lib-sample {:target :npm-module}
+  }}
