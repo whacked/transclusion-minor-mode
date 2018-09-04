@@ -87,7 +87,7 @@ made primarily to work with org-mode files
 
 partial transclusion
 
-{{{transclude(LICENSE,60,500)}}}
+{{{transclude(LICENSE::60,500)}}}
 
 the whole thing
 
@@ -123,39 +123,39 @@ the whole thing
 
 *** lines
 
-   {{{transclude(file:tiny.org:5)}}}
+   {{{transclude(file:tiny.org::5)}}}
 
 **** line range
 
-    {{{transclude(file:tiny.org:2-3)}}}
+    {{{transclude(file:tiny.org::2-3)}}}
    
 **** from start
 
-    {{{transclude(file:tiny.org:-2)}}}
+    {{{transclude(file:tiny.org::-2)}}}
 
 **** until end
 
-    {{{transclude(file:tiny.org:7-)}}}
+    {{{transclude(file:tiny.org::7-)}}}
 
 *** character index range
     
 **** character range
 
-     {{{transclude(file:tiny.org:0,100)}}}
+     {{{transclude(file:tiny.org::0,100)}}}
 
 **** from start
 
-     {{{transclude(file:tiny.org:,100)}}}
+     {{{transclude(file:tiny.org::,100)}}}
 
 **** until end
 
-     {{{transclude(file:tiny.org:50,)}}}
+     {{{transclude(file:tiny.org::50,)}}}
 
 *** percent range
 
     convert to line first
 
-    {{{transclude(file:moozorgjs.org:1%-3%)}}}
+    {{{transclude(file:moozorgjs.org::1%-3%)}}}
 
 ** structural ranges
 
