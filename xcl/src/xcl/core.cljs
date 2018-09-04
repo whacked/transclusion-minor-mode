@@ -1,9 +1,14 @@
 (ns xcl.core
   (:require [cemerick.url :refer (url url-encode)]
             [xcl.content-interop :as ci]
+            [xcl.common :refer [re-pos conj-if-non-nil]]
             ;; sample corpus
             [xcl.corpus :as corpus]
             ))
+
+;; TODO
+;; [ ] anchor text deriver
+;; [ ] anchor text resolver
 
 (js/console.clear)
 
@@ -102,7 +107,7 @@
                         [:query-string] [web-query-to-string])]
    ])
 
-(defn parse [link]
+(defn parse-link [content-loader link]
   (let [[maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
         
@@ -151,5 +156,38 @@
              :file-name file-name
              :match-content (some-> resolved-spec
                                     (ci/resolve-content
-                                     (corpus/load-content file-name))
+                                     (content-loader file-name))
                                     (clojure.string/trim))))))
+
+(def transclusion-directive-matcher
+  #"\{\{\{transclude\(([^\)]+)\)\}\}\}")
+
+(defn parse-transclusion-directive [text]
+  (re-pos transclusion-directive-matcher text))
+
+(defn render-transclusion
+  "content-loader should be a function which,
+   when passed the :file-name parameter from a `resolved-spec`,
+   returns the full text of the target resource (generally a file)"
+  [content-loader source-text]
+  (loop [remain (parse-transclusion-directive source-text)
+         prev-index 0
+         buffer []]
+    (if (empty? remain)
+      (->> (if (< prev-index (count source-text))
+             (subs source-text prev-index))
+           (conj buffer)
+           (apply str))
+      (let [[match-index [matched-string
+                          matched-path]] (first remain)
+            interim-string (when (< prev-index match-index)
+                             (subs source-text prev-index match-index))
+            resolved-spec (parse-link content-loader matched-path)]
+        (recur (rest remain)
+               (+ match-index (count matched-string))
+               (conj-if-non-nil
+                buffer
+                interim-string
+                (if-let [rendered-string (:match-content resolved-spec)]
+                  (render-transclusion content-loader rendered-string)
+                  matched-string)))))))

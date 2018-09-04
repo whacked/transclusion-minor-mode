@@ -1,4 +1,5 @@
-(ns xcl.content-interop)
+(ns xcl.content-interop
+  (:require [xcl.common :refer [re-pos]]))
 
 (defn log [& ss]
   (apply js/console.log ss))
@@ -21,20 +22,12 @@
                         match-tokens)))
              (first))))
 
-(defn re-pos
-  ;; https://stackoverflow.com/a/18737013
-  [re s]
-  (let [re (js/RegExp. (.-source re) "g")]
-    (loop [res {}]
-      (if-let [m (.exec re s)]
-        (recur (assoc res (.-index m)
-                      (rest m)))
-        res))))
-
 (defn get-org-heading-positions [org-content]
   (let [fake-padded-content (str "\n" org-content)]
     (->> (re-pos #"\n(\*+)\s+([^\n]+)"
                  fake-padded-content)
+         (map (fn [[idx match]]
+                [idx (rest match)]))
          (into {}))))
 
 (defn get-org-drawer-data [org-content]
