@@ -178,19 +178,36 @@
                     {:style {:width "20em"
                              :height "20em"}}
                     content])]
-    (->> [["xcl-test-1.org"
-           "* blah blah\n\ngeneric content\ngenetic content\nanother fake file\n\n* huh\n\nwhatever is in the block"]
+    (->> [["xcl-test-self-recursion.org"
+           "I include myself:\nI include myself:\n{{{transclude(xcl:xcl-test-self-recursion.org)}}}"
+           nil]
+          ["xcl-test-infinite-1.org"
+           "Hi from 1. I include infinite 2:\nHi from 2. I include infinite 1:\nHi from 1. I include infinite 2:\n{{{transclude(xcl:xcl-test-infinite-2.org)}}}"
+           nil]
+          ["xcl-test-1.org"
+           "* blah blah\n\ngeneric content\ngenetic content\nanother fake file\n\n* huh\n\nwhatever is in the block"
+           nil]
           ["xcl-test-2.org"
-           "* fake file 2\n\nrandom block\ntandem block\n5 SOME LINE\n6 SOME LINE\n7 SOME LINE\n\nIn 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG."]
+           "* fake file 2\n\nrandom block\ntandem block\n-----\n5 SOME LINE\n6 SOME LINE\n7 SOME LINE\n-----\n\n\n-----\nIn 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG.\n-----\n"
+           [(fn [s]
+              (str "-----\n"
+                   s "\n"
+                   "-----\n"))]]
           ["xcl-test-3-c.org"
-           "* I am C and I include B\n\n** I am B and I include A\n\n** content of A!\n\naye aye aye"]]
-         (map (fn [[source-file expected]]
+           "* I am C and I include B\n\n*@!!* I am B and I include A\n\n** content of A!\n\naye aye aye??@"
+           [(fn [s]
+              (str "!!" s "??"))
+            (fn [s]
+              (str "@" s "@"))]]]
+         (map (fn [[source-file expected postprocessor-coll]]
                 (let [source-text (corpus/load-content source-file)
-                      rendered (sc/render-transclusion
+                      rendered (apply
+                                sc/render-transclusion
                                 (fn [& _]
                                   (corpus/list-files "_test"))
                                 corpus/load-content
-                                source-text)
+                                source-text
+                                postprocessor-coll)
                       is-same? (= expected rendered)]
                   [:tr
                    [:td
