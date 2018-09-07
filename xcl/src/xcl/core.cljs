@@ -204,32 +204,56 @@
    returns a seq of all the known file names
    `content-loader` should be a function which,
    when passed the :file-name parameter from a `resolved-spec`,
-   returns the full text of the target resource (generally a file)"
-  [candidate-seq-loader content-loader source-text]
-  (loop [remain (parse-transclusion-directive source-text)
-         prev-index 0
-         buffer []]
-    (if (empty? remain)
-      (->> (if (< prev-index (count source-text))
-             (subs source-text prev-index))
-           (conj buffer)
-           (apply str))
-      (let [[match-index [matched-string
-                          matched-path]] (first remain)
-            interim-string (when (< prev-index match-index)
-                             (subs source-text prev-index match-index))
-            resolved-spec (parse-link
-                           candidate-seq-loader
-                           content-loader
-                           matched-path)]
-        (recur (rest remain)
-               (+ match-index (count matched-string))
-               (conj-if-non-nil
-                buffer
-                interim-string
-                (if-let [rendered-string (:match-content resolved-spec)]
-                  (render-transclusion
-                   candidate-seq-loader
-                   content-loader
-                   rendered-string)
-                  matched-string)))))))
+   returns the full text of the target resource (generally a file)
+
+   `postprocessor-coll` is potentially an iterable of functions
+   of type str -> str
+
+  the postprocessing will only apply to a *single* level of transclusion
+  "
+  [candidate-seq-loader content-loader source-text & postprocessor-coll]
+  (let [inner-renderer
+        (fn inner-renderer [visited?
+                            candidate-seq-loader
+                            content-loader
+                            source-text
+                            & postprocessor-coll]
+          (loop [remain (parse-transclusion-directive source-text)
+                 prev-index 0
+                 buffer []]
+            (if (empty? remain)
+              (->> (if (< prev-index (count source-text))
+                     (subs source-text prev-index))
+                   (conj buffer)
+                   (apply str))
+              (let [[match-index [matched-string
+                                  matched-path]] (first remain)
+                    interim-string (when (< prev-index match-index)
+                                     (subs source-text prev-index match-index))
+                    resolved-spec (parse-link
+                                   candidate-seq-loader
+                                   content-loader
+                                   matched-path)
+                    resolved-file-name (:file-name resolved-spec)]
+                (if (visited? resolved-file-name)
+                  source-text
+                  (recur (rest remain)
+                         (+ match-index (count matched-string))
+                         (conj-if-non-nil
+                          buffer
+                          interim-string
+                          (if-let [rendered-string
+                                   (:match-content resolved-spec)]
+                            (reduce (fn [input postprocessor]
+                                      (postprocessor input))
+                                    (inner-renderer
+                                     (conj visited? resolved-file-name)
+                                     candidate-seq-loader
+                                     content-loader
+                                     rendered-string)
+                                    postprocessor-coll)
+                            matched-string))))))))]
+    (apply inner-renderer
+           #{} ;; visited?
+           candidate-seq-loader content-loader source-text
+           postprocessor-coll)))
