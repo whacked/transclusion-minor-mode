@@ -245,7 +245,8 @@
                           (if-let [rendered-string
                                    (:match-content resolved-spec)]
                             (reduce (fn [input postprocessor]
-                                      (postprocessor input))
+                                      (postprocessor
+                                       input resolved-spec))
                                     (inner-renderer
                                      (conj visited? resolved-file-name)
                                      candidate-seq-loader

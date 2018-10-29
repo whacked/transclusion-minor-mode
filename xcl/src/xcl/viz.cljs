@@ -189,16 +189,33 @@
            nil]
           ["xcl-test-2.org"
            "* fake file 2\n\nrandom block\ntandem block\n-----\n5 SOME LINE\n6 SOME LINE\n7 SOME LINE\n-----\n\n\n-----\nIn 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG.\n-----\n"
-           [(fn [s]
+           [(fn [s _]
               (str "-----\n"
                    s "\n"
                    "-----\n"))]]
           ["xcl-test-3-c.org"
            "* I am C and I include B\n\n*@!!* I am B and I include A\n\n** content of A!\n\naye aye aye??@"
-           [(fn [s]
+           [(fn [s _]
               (str "!!" s "??"))
-            (fn [s]
-              (str "@" s "@"))]]]
+            (fn [s _]
+              (str "@" s "@"))]]
+          ["xcl-test-3-d.org"
+           "* I am D and I include A
+
+#+BEGIN_TRANSCLUSION xcl-test-3-a.org :lines 1
+content of A!
+#+END_TRANSCLUSION
+"
+           ;; custom transclusion directive postprocessor
+           [(fn [s xcl-spec]
+              (str "#+BEGIN_TRANSCLUSION "
+                   (:path xcl-spec)
+                   " :lines "
+                   (get-in xcl-spec
+                           [:content-boundary :beg])
+                   "\n"
+                   s "\n"
+                   "#+END_TRANSCLUSION\n"))]]]
          (map (fn [[source-file expected postprocessor-coll]]
                 (let [source-text (corpus/load-content source-file)
                       rendered (apply
