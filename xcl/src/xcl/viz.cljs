@@ -194,27 +194,33 @@
                    s "\n"
                    "-----\n"))]]
           ["xcl-test-3-c.org"
-           "* I am C and I include B\n\n*@!!* I am B and I include A\n\n** content of A!\n\naye aye aye??@"
+           "* I am C and I include B
+
+*@1-!!* I am B and I include A
+
+** @2-!!content of A!
+
+aye aye aye??-2@??-1@"
            [(fn [s _]
               (str "!!" s "??"))
-            (fn [s _]
-              (str "@" s "@"))]]
+            (fn [s _ depth]
+              (str "@" depth "-" s "-" depth "@"))]]
           ["xcl-test-3-d.org"
            "* I am D and I include A
 
 #+BEGIN_TRANSCLUSION xcl-test-3-a.org :lines 1
-content of A!
+@1 -- content of A!
 #+END_TRANSCLUSION
 "
            ;; custom transclusion directive postprocessor
-           [(fn [s xcl-spec]
+           [(fn [s xcl-spec depth]
               (str "#+BEGIN_TRANSCLUSION "
                    (:path xcl-spec)
                    " :lines "
                    (get-in xcl-spec
                            [:content-boundary :beg])
                    "\n"
-                   s "\n"
+                   "@" depth " -- " s "\n"
                    "#+END_TRANSCLUSION\n"))]]]
          (map (fn [[source-file expected postprocessor-coll]]
                 (let [source-text (corpus/load-content source-file)
