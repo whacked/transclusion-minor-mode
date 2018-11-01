@@ -23,5 +23,5 @@
 
   :lib-sample {:target :node-library
                :output-to "build/transclusion.js"
-               :exports {:render xcl.core/render-transclusion}}
+               :exports {:render xcl.core/render-transclusion-nodejs}}
   }}

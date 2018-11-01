@@ -7,8 +7,6 @@
 ;; [ ] anchor text deriver
 ;; [ ] anchor text resolver
 
-(js/console.clear)
-
 (def known-protocols
   #{:file
     :grep
@@ -207,13 +205,14 @@
    returns the full text of the target resource (generally a file)
 
    `postprocessor-coll` is potentially an iterable of functions
-   of type str -> str
+   of type (str, transclusion-spec, depth) -> str
 
-  the postprocessing will only apply to a *single* level of transclusion
+  the postprocessing will be applied after every transclusion operation
   "
   [candidate-seq-loader content-loader source-text & postprocessor-coll]
   (let [inner-renderer
-        (fn inner-renderer [visited?
+        (fn inner-renderer [depth
+                            visited?
                             candidate-seq-loader
                             content-loader
                             source-text
@@ -234,7 +233,16 @@
                                    candidate-seq-loader
                                    content-loader
                                    matched-path)
-                    resolved-file-name (:file-name resolved-spec)]
+                    resolved-file-name (:file-name resolved-spec)
+
+                    postprocess
+                    (fn [content]
+                      (reduce (fn [input postprocessor]
+                                (postprocessor
+                                 input resolved-spec depth))
+                              content
+                              postprocessor-coll))
+                    ]
                 (if (visited? resolved-file-name)
                   source-text
                   (recur (rest remain)
@@ -244,17 +252,30 @@
                           interim-string
                           (if-let [rendered-string
                                    (:match-content resolved-spec)]
-                            (reduce (fn [input postprocessor]
-                                      (postprocessor
-                                       input resolved-spec))
-                                    (inner-renderer
-                                     (conj visited? resolved-file-name)
-                                     candidate-seq-loader
-                                     content-loader
-                                     rendered-string)
-                                    postprocessor-coll)
+                            (postprocess
+                             (apply
+                              inner-renderer
+                              (inc depth)
+                              (conj visited? resolved-file-name)
+                              candidate-seq-loader
+                              content-loader
+                              rendered-string
+                              postprocessor-coll))
                             matched-string))))))))]
     (apply inner-renderer
+           1 ;; first detected transclusion starts at depth 1
            #{} ;; visited?
            candidate-seq-loader content-loader source-text
            postprocessor-coll)))
+
+(defn render-transclusion-nodejs
+  "compatibility function for calling from nodejs; wraps all fns in
+  postprocessor-coll to ensure resultant object is native #js type
+  "
+  [candidate-seq-loader content-loader source-text & postprocessor-coll]
+  (->> postprocessor-coll
+       (map (fn [postprocessor-fn]
+              (fn [content xcl-spec depth]
+                (postprocessor-fn content (clj->js xcl-spec) depth))))
+       (apply render-transclusion
+              candidate-seq-loader content-loader source-text)))
