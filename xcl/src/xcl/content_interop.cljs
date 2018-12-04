@@ -246,6 +246,6 @@
       (@$resolver :whole-file))))
 
 (defn resolve-content [resolved-spec content]
-  (let [resolver (-> (:content-resolver resolved-spec :whole-file)
+  (let [resolver (-> (:content-resolver-method resolved-spec :whole-file)
                      (get-resolver))]
     (resolver resolved-spec content)))

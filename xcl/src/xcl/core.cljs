@@ -51,7 +51,7 @@
 
 (defmulti get-file-match
   (fn [_ _ resolved]
-    (:resource-resolver resolved)))
+    (:resource-resolver-method resolved)))
 
 (defmethod get-file-match :exact-name
   [candidate-seq-loader content-loader resolved]
@@ -147,45 +147,47 @@
         [path maybe-qualifier-separator maybe-qualifier]
         (rest (re-find link-matcher remainder))
 
-        content-resolver (or
-                          (when-not (empty? maybe-qualifier)
-                            (loop [matcher-remain
-                                   (case maybe-qualifier-separator
-                                     "::" org-style-range-matchers
-                                     "?" url-style-constrictor-matchers
-                                     nil)
-                                   out nil]
-                              (if (or out
-                                      (empty? matcher-remain))
-                                out
-                                (let [[range-type matcher] 
-                                      (first matcher-remain)
-                                      maybe-match (matcher maybe-qualifier)]
-                                  (recur
-                                   (rest matcher-remain)
-                                   (if maybe-match
-                                     {:bound maybe-match
-                                      :type range-type}
-                                     out))))))
-                          {:type :whole-file})]
+        content-resolver-method
+        (or
+         (when-not (empty? maybe-qualifier)
+           (loop [matcher-remain
+                  (case maybe-qualifier-separator
+                    "::" org-style-range-matchers
+                    "?" url-style-constrictor-matchers
+                    nil)
+                  out nil]
+             (if (or out
+                     (empty? matcher-remain))
+               out
+               (let [[range-type matcher] 
+                     (first matcher-remain)
+                     maybe-match (matcher maybe-qualifier)]
+                 (recur
+                  (rest matcher-remain)
+                  (if maybe-match
+                    {:bound maybe-match
+                     :type range-type}
+                    out))))))
+         {:type :whole-file})]
     (let [resolved-spec {:link link
                          :path path
                          :protocol protocol
-                         :resource-resolver (cond (re-find #"\*" path)
-                                                  :glob-name
+                         :resource-resolver-method (cond (re-find #"\*" path)
+                                                         :glob-name
 
-                                                  (= protocol :grep)
-                                                  :grep-content
+                                                         (= protocol :grep)
+                                                         :grep-content
                                                   
-                                                  :else :exact-name)
-                         :content-resolver (:type content-resolver)
-                         :content-boundary (:bound content-resolver)}
+                                                         :else :exact-name)
+                         :content-resolver-method (:type content-resolver-method)
+                         :content-boundary (:bound content-resolver-method)}
           file-name (get-file-match
                      candidate-seq-loader
                      content-loader
                      resolved-spec)]
       (assoc resolved-spec
-             :file-name file-name
+             ;; FIXME
+             :resource-address file-name
              :match-content (some-> resolved-spec
                                     (ci/resolve-content
                                      (content-loader file-name))
@@ -201,7 +203,7 @@
   "`candidate-seq-loader` should be a function which
    returns a seq of all the known file names
    `content-loader` should be a function which,
-   when passed the :file-name parameter from a `resolved-spec`,
+   when passed the :resource-address parameter from a `resolved-spec`,
    returns the full text of the target resource (generally a file)
 
    `postprocessor-coll` is potentially an iterable of functions
@@ -233,7 +235,7 @@
                                    candidate-seq-loader
                                    content-loader
                                    matched-path)
-                    resolved-file-name (:file-name resolved-spec)
+                    resolved-file-name (:resource-address resolved-spec)
 
                     postprocess
                     (fn [content]

@@ -19,9 +19,9 @@
 (defn render-link-test-view! []
   ;; resolver record
   (defrecord RR
-      [resource-resolver
-       content-resolver
-       file-name
+      [resource-resolver-method
+       content-resolver-method
+       resource-address
        match-content])
 
   (->> [["full file" "tiny.org"
