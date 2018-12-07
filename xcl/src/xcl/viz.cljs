@@ -4,13 +4,19 @@
             [xcl.core :as sc]
             [xcl.corpus :as corpus]))
 
+(defn get-static-content
+  [search-path]
+  (corpus/file-cache search-path))
+
 (defn render-map [m]
   {:pre [(map? m)]}
   (->> m
        (map (fn [[k v]]
               [:tr
                [:th [:code k]]
-               [:td [:code (pr-str v)]]]))
+               [:td [:code (subs
+                            (pr-str v)
+                            0 500)]]]))
        (concat [:tbody])
        (vec)
        (vector :table {:style {:font-size "x-small"}})
@@ -20,119 +26,140 @@
   ;; resolver record
   (defrecord RR
       [resource-resolver-method
-       content-resolver-method
+       content-resolver-method-type
        resource-address
        match-content])
 
-  (->> [["full file" "tiny.org"
+  (->> [
+
+        ;; ["grab text from epub"
+        ;;  "xcl:alice.epub?p=20&s=and...the"
+        ;;  (RR. :exact-name-with-subsection
+        ;;       :token-bound
+        ;;       {:file-name "alice.epub"
+        ;;        :page-number 20}
+        ;;       "fail fail fail")]
+        
+        ;; ["grab text from pdf"
+        ;;  "xcl:tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
+        ;;  (RR. :exact-name-with-subsection
+        ;;       :token-bound
+        ;;       {:file-name "tracemonkey.pdf"
+        ;;        :page-number 3}
+        ;;       "fail fail fail")]
+        
+        
+        ["full file" "tiny.org"
          (RR. :exact-name
               :whole-file
-              "tiny.org"
-              (corpus/load-content "tiny.org"))]
+              {:file-name "tiny.org"}
+              (get-static-content "tiny.org"))]
+        
         ["full file" "file:tiny.org"
          (RR. :exact-name
               :whole-file
-              "tiny.org"
-              (corpus/load-content "tiny.org"))]
+              {:file-name "tiny.org"}
+              (get-static-content "tiny.org"))]
+
         ["line in file" "LICENSE::7"
          (RR. :exact-name
               :line-range
-              "LICENSE"
+              {:file-name "LICENSE"}
               "of this license document, but changing it is not allowed.")]
         ["line in file" "file:100lines::5"
          (RR. :exact-name
               :line-range
-              "100lines"
+              {:file-name "100lines"}
               "5 SOME LINE")]
         ["line range" "file:tiny.org::2-3"
          (RR. :exact-name
               :line-range
-              "tiny.org"
+              {:file-name "tiny.org"}
               "* decoy 1\n* something third line")]
         ["line from start" "file:tiny.org::-2"
          (RR. :exact-name
               :line-range
-              "tiny.org"
+              {:file-name "tiny.org"}
               "fake file (line 1)\n* decoy 1")]
         ["line to end" "file:tiny.org::7-"
          (RR. :exact-name
               :line-range
-              "tiny.org"
+              {:file-name "tiny.org"}
               "seven 7s\nocho acht")]
         ["character range" "tiny.org::5,40"
          (RR. :exact-name
               :char-range
-              "tiny.org"
+              {:file-name "tiny.org"}
               "file (line 1)\n* decoy 1\n* something")]
         ["character from start" "file:tiny.org::,20"
          (RR. :exact-name
               :char-range
-              "tiny.org"
+              {:file-name "tiny.org"}
               "fake file (line 1)\n*")]
         ["character to end" "file:tiny.org::75,"
          (RR. :exact-name
               :char-range
-              "tiny.org"
+              {:file-name "tiny.org"}
               "h line\nsix sixths is sick sith\nseven 7s\nocho acht")]
         ["percent range" "100lines::1%-3%"
          (RR. :exact-name
               :percent-range
-              "100lines"
+              {:file-name "100lines"}
               "2 SOME LINE\n3 SOME LINE\n4 SOME LINE")]
         ["native org: heading" "file:tiny.org::*decoy 1"
          (RR. :exact-name
               :org-heading
-              "tiny.org"
+              {:file-name "tiny.org"}
               "* decoy 1")]
         ["exact string match range" "file:dummy.org::in 2101...for great justice"
          (RR. :exact-name
               :token-bound
-              "dummy.org"
+              {:file-name "dummy.org"}
               "In 2101, war was beginning. What happen? Main screen turn on. For great justice")]
         ["glob file name" "file:d*y.org::*huh"
          (RR. :glob-name
               :org-heading
-              "dummy.org"
+              {:file-name "dummy.org"}
               "* huh\n\nwhatever is in the block")]
         ["fuzzy find file by content +" "grep:ZZ+you::*huh"
          (RR. :grep-content
               :org-heading
-              "dummy.org"
+              {:file-name "dummy.org"}
               "* huh\n\nwhatever is in the block")]
         ["fuzzy find file by content raw space" "grep:ZZ you::*huh"
          (RR. :grep-content
               :org-heading
-              "dummy.org"
+              {:file-name "dummy.org"}
               "* huh\n\nwhatever is in the block")]
         ["fuzzy find file by html entity" "grep:ZZ%20you::*huh"
          (RR. :grep-content
               :org-heading
-              "dummy.org"
+              {:file-name "dummy.org"}
               "* huh\n\nwhatever is in the block")]
         ["constrict by org node ID" "xcl:dummy.org?id=my-node-id"
          (RR. :exact-name
               :org-node-id
-              "dummy.org"
+              {:file-name "dummy.org"}
               "* next heading\n  :PROPERTIES:\n  :CUSTOM_ID: my-node-id\n  :END:\n\n  good stuff")]
         ["constrict by first token range" "xcl:dummy.org?s=in 2101...for great justice."
          (RR. :exact-name
               :token-bound
-              "dummy.org"
+              {:file-name "dummy.org"}
               "In 2101, war was beginning. What happen? Main screen turn on. For great justice.")]
         ["constrict by nearest line" "xcl:dummy.org?line=support+scheduled"
          (RR. :exact-name
               :line-with-match
-              "dummy.org"
+              {:file-name "dummy.org"}
               "Support attributes like ~SCHEDULED:~.")]
         ["constrict by first matching paragraph" "xcl:dummy.org?para=what+happen"
          (RR. :exact-name
               :paragraph-with-match
-              "dummy.org"
+              {:file-name "dummy.org"}
               "In 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG.")]
         ["constrict by first matching section" "xcl:dummy.org?section=famous+script"
          (RR. :exact-name
               :org-section-with-match
-              "dummy.org"
+              {:file-name "dummy.org"}
               "** famous script\n\n   Captain and CATS\n   \n   In 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG."
               )]
         ]
@@ -141,7 +168,7 @@
           (let [received (sc/parse-link
                           (fn [& _]
                             (corpus/list-files "_test"))
-                          corpus/load-content
+                          get-static-content
                           link)
                 success? (->> (keys expected)
                               (map (fn [k]
@@ -223,12 +250,12 @@ aye aye aye??-2@??-1@"
                    "@" depth " -- " s "\n"
                    "#+END_TRANSCLUSION\n"))]]]
          (map (fn [[source-file expected postprocessor-coll]]
-                (let [source-text (corpus/load-content source-file)
+                (let [source-text (get-static-content source-file)
                       rendered (apply
                                 sc/render-transclusion
                                 (fn [& _]
                                   (corpus/list-files "_test"))
-                                corpus/load-content
+                                get-static-content
                                 source-text
                                 postprocessor-coll)
                       is-same? (= expected rendered)]
@@ -257,11 +284,14 @@ aye aye aye??-2@??-1@"
 (defn main []
   (r/render
    [:div
-    [:div {:style {:width "100%"
-                   :border "1px solid blue"}}
-     (render-transclusion-test-view!)
-     [:div {:style {:clear "both"}}]]
-    [:div (render-link-test-view!)]]
-   (gdom/getElement "main-app")))
+    [:h2 "link test view"]
+    [:div (render-link-test-view!)]
+    ;; [:div {:style {:width "100%"
+    ;;                :border "1px solid blue"}}
+    ;;  (render-transclusion-test-view!)
+    ;;  [:div {:style {:clear "both"}}]]
+    ]
+   (gdom/getElement "main-app"))
+  )
 
 (main)
