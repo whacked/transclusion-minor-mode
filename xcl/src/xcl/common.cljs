@@ -13,3 +13,6 @@
       (if-let [m (.exec re s)]
         (recur (assoc res (.-index m) m))
         res))))
+
+(defn get-file-extension [file-path]
+  (last (re-matches #".*\.([^.]+)" file-path)))

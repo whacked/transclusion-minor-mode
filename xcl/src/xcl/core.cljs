@@ -1,7 +1,8 @@
 (ns xcl.core
   (:require [cemerick.url :refer (url url-encode)]
             [xcl.content-interop :as ci]
-            [xcl.common :refer [re-pos conj-if-non-nil]]))
+            [xcl.common :refer [re-pos conj-if-non-nil
+                                get-file-extension]]))
 
 ;; TODO
 ;; [ ] anchor text deriver
@@ -135,9 +136,14 @@
                         [:query-string] [web-query-to-string])]
    ])
 
-(defn parse-link [candidate-seq-loader
-                  content-loader
-                  link]
+(defn get-resource-resolver-method-for-file-by-type [file-path]
+  (case (get-file-extension file-path)
+    ("pdf" "epub") :exact-name-with-subsection
+    :exact-name))
+
+(defn parse-link-async [candidate-seq-loader
+                        content-loader-async
+                        link]
   (let [[maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
         
