@@ -1,5 +1,6 @@
 (ns xcl.content-interop
-  (:require [xcl.common :refer [re-pos]]))
+  (:require [xcl.common :refer [re-pos]]
+            [xcl.external :as ext]))
 
 (defn log [& ss]
   (apply js/console.log ss))
@@ -238,11 +239,12 @@
                      section-text
                      (recur (rest remain))))))))}))
 
-(defn get-resolver [resolver-name]
-  (if-let [registered-resolver (@$resolver resolver-name)]
+(defn get-resolver [resolver-spec]
+  (if-let [registered-resolver (@$resolver
+                                (:type resolver-spec))]
     registered-resolver
     (do
-      (warn "UNKNOWN RESOLVER" (pr-str resolver-name))
+      (warn "UNKNOWN RESOLVER" (pr-str (:type resolver-spec)))
       (@$resolver :whole-file))))
 
 (defn resolve-content [resolved-spec content]

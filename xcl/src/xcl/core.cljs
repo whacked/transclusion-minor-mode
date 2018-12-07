@@ -50,18 +50,26 @@
   (some-> s
           (clojure.string/replace #"%20" " ")))
 
-(defmulti get-file-match
+(defmulti get-resource-match
   (fn [_ _ resolved]
     (:resource-resolver-method resolved)))
 
-(defmethod get-file-match :exact-name
+(defn get-file-exact
   [candidate-seq-loader content-loader resolved]
   (let [file-name (:path resolved)]
     (some->> (candidate-seq-loader)
              (filter (partial = file-name))
              (first))))
 
-(defmethod get-file-match :glob-name
+(defmethod get-resource-match :exact-name
+  [candidate-seq-loader content-loader resolved]
+  (get-file-exact candidate-seq-loader content-loader resolved))
+
+(defmethod get-resource-match :exact-name-with-subsection
+  [candidate-seq-loader content-loader resolved]
+  (get-file-exact candidate-seq-loader content-loader resolved))
+
+(defmethod get-resource-match :glob-name
   [candidate-seq-loader content-loader resolved]
   (let [file-pattern (-> (:path resolved)
                          (clojure.string/replace "*" ".*")
@@ -70,7 +78,7 @@
              (filter (partial re-find file-pattern))
              (first))))
 
-(defmethod get-file-match :grep-content
+(defmethod get-resource-match :grep-content
   [candidate-seq-loader content-loader resolved]
   (let [grep-pattern (-> (:path resolved)
                          (clojure.string/replace "+" " ")
@@ -123,17 +131,25 @@
 (def url-style-constrictor-matchers
   [[:org-node-id
     (make-named-matcher #"id=(\S+)" [:id])]
+   [:page-number
+    (make-named-matcher #"p=(\d+)"
+                        [:page-number]
+                        [string-to-int])]
    [:token-bound
-    (make-named-matcher #"s=(\S.+)\.\.\.(\S.+)" [:token-beg :token-end])]
+    (make-named-matcher #"s=(\S.+)\.\.\.(\S.+)"
+                        [:token-beg :token-end])]
    [:line-with-match
     (make-named-matcher #"line=(\S+)"
-                        [:query-string] [web-query-to-string])]
+                        [:query-string]
+                        [web-query-to-string])]
    [:paragraph-with-match
     (make-named-matcher #"para=(\S+)"
-                        [:query-string] [web-query-to-string])]
+                        [:query-string]
+                        [web-query-to-string])]
    [:org-section-with-match
     (make-named-matcher #"section=(\S+)"
-                        [:query-string] [web-query-to-string])]
+                        [:query-string]
+                        [web-query-to-string])]
    ])
 
 (defn get-resource-resolver-method-for-file-by-type [file-path]
@@ -141,9 +157,7 @@
     ("pdf" "epub") :exact-name-with-subsection
     :exact-name))
 
-(defn parse-link-async [candidate-seq-loader
-                        content-loader-async
-                        link]
+(defn parse-link [candidate-seq-loader content-loader-async link]
   (let [[maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
         
@@ -156,47 +170,95 @@
         content-resolver-method
         (or
          (when-not (empty? maybe-qualifier)
-           (loop [matcher-remain
-                  (case maybe-qualifier-separator
-                    "::" org-style-range-matchers
-                    "?" url-style-constrictor-matchers
-                    nil)
-                  out nil]
-             (if (or out
-                     (empty? matcher-remain))
-               out
-               (let [[range-type matcher] 
-                     (first matcher-remain)
-                     maybe-match (matcher maybe-qualifier)]
-                 (recur
-                  (rest matcher-remain)
-                  (if maybe-match
-                    {:bound maybe-match
-                     :type range-type}
-                    out))))))
+           (let [derive-qualifier
+                 (fn derive-qualifier [derived
+                                       qualifier-remain]
+                   (if (empty? qualifier-remain)
+                     derived
+                     (let [maybe-qualifier-string (first qualifier-remain)]
+                       (loop [matcher-remain
+                              (case maybe-qualifier-separator
+                                "::" org-style-range-matchers
+                                "?" url-style-constrictor-matchers
+                                nil)
+                              out nil]
+                         (if (or out
+                                 (empty? matcher-remain))
+                           (merge out
+                                  (when-let [sub-derived
+                                             (derive-qualifier
+                                              derived
+                                              (rest qualifier-remain))]
+                                    {:next sub-derived}))
+                           (let [[match-type-name matcher] 
+                                 (first matcher-remain)
+                                 maybe-match (matcher maybe-qualifier-string)]
+                             (recur
+                              (rest matcher-remain)
+                              (if maybe-match
+                                (merge
+                                 {:bound maybe-match
+                                  :type match-type-name})
+                                out))))))))]
+             (derive-qualifier
+              nil
+              (clojure.string/split
+               maybe-qualifier
+               #"&"))))
          {:type :whole-file})]
-    (let [resolved-spec {:link link
-                         :path path
-                         :protocol protocol
-                         :resource-resolver-method (cond (re-find #"\*" path)
-                                                         :glob-name
+    
+    (js/console.log
+     (str "%c===content resolver===%c"
+          (pr-str content-resolver-method))
+     "color:yellow;background:black;"
+     "color:brown;background:none;")
+    
+    (let [base-spec {:link link
+                     :path path
+                     :protocol protocol
+                     :resource-resolver-method (cond (re-find #"\*" path)
+                                                     :glob-name
 
-                                                         (= protocol :grep)
-                                                         :grep-content
+                                                     (= protocol :grep)
+                                                     :grep-content
                                                   
-                                                         :else :exact-name)
-                         :content-resolver-method (:type content-resolver-method)
-                         :content-boundary (:bound content-resolver-method)}
-          file-name (get-file-match
+                                                     :else (get-resource-resolver-method-for-file-by-type
+                                                            path))
+                     :content-resolver-method content-resolver-method
+                     :content-boundary (:bound content-resolver-method)}
+
+          resolved-spec (assoc base-spec
+                               :content-resolver-method-type
+                               (case (:resource-resolver-method base-spec)
+                                 :exact-name-with-subsection
+                                 (if (= :page-number
+                                        (:type content-resolver-method))
+                                   (get-in
+                                    content-resolver-method
+                                    [:sub :type]))
+                                 
+                                 (:type content-resolver-method)))
+          file-name (get-resource-match
                      candidate-seq-loader
-                     content-loader
+                     content-loader-async
                      resolved-spec)]
+      (js/console.log
+       (str "%cSPEC%c"
+            (pr-str resolved-spec))
+       "color:red;font-weight:bold;"
+       "color:blue;")
       (assoc resolved-spec
-             ;; FIXME
-             :resource-address file-name
+             :resource-address (case (:resource-resolver-method resolved-spec)
+                                 :exact-name-with-subsection
+                                 (merge {:file-name file-name}
+                                        (if (= :page-number
+                                               (:type content-resolver-method))
+                                          (:bound content-resolver-method)))
+                                 
+                                 {:file-name file-name})
              :match-content (some-> resolved-spec
                                     (ci/resolve-content
-                                     (content-loader file-name))
+                                     (content-loader-async file-name))
                                     (clojure.string/trim))))))
 
 (def transclusion-directive-matcher
@@ -205,24 +267,31 @@
 (defn parse-transclusion-directive [text]
   (re-pos transclusion-directive-matcher text))
 
+(defn resolve-resource-address [resource-address]
+  (if (string? resource-address)
+    resource-address
+    (:file-name resource-address)))
+
 (defn render-transclusion
   "`candidate-seq-loader` should be a function which
    returns a seq of all the known file names
-   `content-loader` should be a function which,
+   `content-loader-async` should be a function which,
    when passed the :resource-address parameter from a `resolved-spec`,
-   returns the full text of the target resource (generally a file)
+   and a callback function,calls the callback with the full text of
+   the target resource when ready (generally a file)
 
    `postprocessor-coll` is potentially an iterable of functions
    of type (str, transclusion-spec, depth) -> str
 
   the postprocessing will be applied after every transclusion operation
   "
-  [candidate-seq-loader content-loader source-text & postprocessor-coll]
+  [candidate-seq-loader content-loader-async
+   source-text & postprocessor-coll]
   (let [inner-renderer
         (fn inner-renderer [depth
                             visited?
                             candidate-seq-loader
-                            content-loader
+                            content-loader-async
                             source-text
                             & postprocessor-coll]
           (loop [remain (parse-transclusion-directive source-text)
@@ -239,9 +308,10 @@
                                      (subs source-text prev-index match-index))
                     resolved-spec (parse-link
                                    candidate-seq-loader
-                                   content-loader
+                                   content-loader-async
                                    matched-path)
-                    resolved-file-name (:resource-address resolved-spec)
+                    resolved-file-name (resolve-resource-address
+                                        (:resource-address resolved-spec))
 
                     postprocess
                     (fn [content]
@@ -266,14 +336,14 @@
                               (inc depth)
                               (conj visited? resolved-file-name)
                               candidate-seq-loader
-                              content-loader
+                              content-loader-async
                               rendered-string
                               postprocessor-coll))
                             matched-string))))))))]
     (apply inner-renderer
            1 ;; first detected transclusion starts at depth 1
            #{} ;; visited?
-           candidate-seq-loader content-loader source-text
+           candidate-seq-loader content-loader-async source-text
            postprocessor-coll)))
 
 (defn render-transclusion-nodejs
