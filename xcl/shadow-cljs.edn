@@ -6,6 +6,10 @@
   [reagent "0.8.1"]
   [com.cemerick/url "0.1.1"]]
 
+ ;; connect to the cljs repl from cider:
+ ;; (shadow.cljs.devtools.api/nrepl-select :browser-sample)
+ :nrepl {:port 8202}
+ 
  :builds
  {:browser-sample {:target :browser
                    :output-dir "public/js"
