@@ -96,7 +96,7 @@
 (def $resolver
   (atom {:whole-file (fn [_ content] content)
          :line-range (fn [spec content]
-                       (let [{:keys [beg end]} (:content-boundary spec)
+                       (let [{:keys [beg end]} (:bound spec)
                              begin-index (max 0 (if beg (dec beg) 0))
                              lines (->> (clojure.string/split-lines content)
                                         (drop begin-index))]
@@ -107,13 +107,13 @@
                               (interpose "\n")
                               (apply str))))
          :char-range (fn [spec content]
-                       (let [{:keys [beg end]} (:content-boundary spec)]
+                       (let [{:keys [beg end]} (:bound spec)]
                          (subs content beg
                                (or end (count content)))))
          :percent-range (fn [spec content]
                           (let [lines (clojure.string/split-lines content)
                                 n-lines (count lines)
-                                {:keys [beg end]} (:content-boundary spec)
+                                {:keys [beg end]} (:bound spec)
                                 beg-index (->> (* 0.01 beg n-lines)
                                                (Math/round)
                                                (max 0)) 
@@ -127,7 +127,7 @@
          :token-bound (fn [spec content]
                         (let [{:keys [token-beg
                                       token-end]}
-                              (:content-boundary spec)
+                              (:bound spec)
                               lower-content (clojure.string/lower-case
                                              content)
                               maybe-begin-index (clojure.string/index-of
@@ -154,7 +154,7 @@
                                   spec (clojure.string/split content #"[\r\t ]*\n[\r\t ]*\n[\r\t ]*")))
          :org-heading (fn [spec content]
                         (let [target-heading (-> spec
-                                                 (get-in [:content-boundary :heading])
+                                                 (get-in [:bound :heading])
                                                  (clojure.string/lower-case))
                               org-heading-positions (get-org-heading-positions
                                                      content)]
@@ -186,7 +186,7 @@
          :org-section-with-match
          (fn [spec content]
            (let [match-pattern (-> spec
-                                   (get-in [:content-boundary :query-string])
+                                   (get-in [:bound :query-string])
                                    (clojure.string/lower-case)
                                    (clojure.string/replace #"\+" "\\s+.*?")
                                    (re-pattern))
@@ -219,7 +219,7 @@
          :org-node-id
          (fn [spec content]
            (let [target-custom-id (-> spec
-                                      (get-in [:content-boundary :id])
+                                      (get-in [:bound :id])
                                       (clojure.string/lower-case))
                  org-heading-positions (get-org-heading-positions
                                         content)
