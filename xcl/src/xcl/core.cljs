@@ -157,7 +157,7 @@
     ("pdf" "epub") :exact-name-with-subsection
     :exact-name))
 
-(defn parse-link [candidate-seq-loader content-loader-async link]
+(defn parse-link [link]
   (let [[maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
         
@@ -166,46 +166,40 @@
         
         [path maybe-qualifier-separator maybe-qualifier]
         (rest (re-find link-matcher remainder))
+        
+        maybe-resolvers
+        (when-not (empty? maybe-qualifier)
+          (loop [matcher-remain
+                 (case maybe-qualifier-separator
+                   "::" org-style-range-matchers
+                   "?" url-style-constrictor-matchers
+                   nil)
+                 out []]
+            (if (empty? matcher-remain)
+              out
+              (let [[range-type matcher]
+                    (first matcher-remain)
+                    maybe-match (matcher maybe-qualifier)]
+                (recur
+                 (rest matcher-remain)
+                 (if maybe-match
+                   (conj out
+                         {:bound maybe-match
+                          :type range-type})
+                   out))))))
+        ]
+    
+    {:link link
+     :protocol protocol
+     :resource-resolver-path (js/decodeURI path)
+     :resource-resolver-method (cond (re-find #"\*" path)
+                                     :glob-name
 
-        content-resolver-method
-        (or
-         (when-not (empty? maybe-qualifier)
-           (let [derive-qualifier
-                 (fn derive-qualifier [derived
-                                       qualifier-remain]
-                   (if (empty? qualifier-remain)
-                     derived
-                     (let [maybe-qualifier-string (first qualifier-remain)]
-                       (loop [matcher-remain
-                              (case maybe-qualifier-separator
-                                "::" org-style-range-matchers
-                                "?" url-style-constrictor-matchers
-                                nil)
-                              out nil]
-                         (if (or out
-                                 (empty? matcher-remain))
-                           (merge out
-                                  (when-let [sub-derived
-                                             (derive-qualifier
-                                              derived
-                                              (rest qualifier-remain))]
-                                    {:next sub-derived}))
-                           (let [[match-type-name matcher] 
-                                 (first matcher-remain)
-                                 maybe-match (matcher maybe-qualifier-string)]
-                             (recur
-                              (rest matcher-remain)
-                              (if maybe-match
-                                (merge
-                                 {:bound maybe-match
-                                  :type match-type-name})
-                                out))))))))]
-             (derive-qualifier
-              nil
-              (clojure.string/split
-               maybe-qualifier
-               #"&"))))
-         {:type :whole-file})]
+                                     (= protocol :grep)
+                                     :grep-content
+                                     
+                                     :else :exact-name)
+     :content-resolvers (or maybe-resolvers [{:type :whole-file}])}))
     
     (js/console.log
      (str "%c===content resolver===%c"

@@ -186,6 +186,125 @@
              [:td [:code link]]
              [:td (render-map expected)]
              [:td (render-map received)]])))
+(defn render-link-test-view! [view-state]
+  (->> [["line in file"
+         "LICENSE::7"
+         "LICENSE" :exact-name
+         :line-range {:beg 7 :end 7}]
+        ["line in file"
+         "file:100lines::5"
+         "100lines" :exact-name
+         :line-range {:beg 5 :end 5}]
+        ["line range"
+         "file:tiny.org::2-3"
+         "tiny.org" :exact-name
+         :line-range {:beg 2 :end 3}]
+        ["line from start"
+         "file:tiny.org::-2"
+         "tiny.org" :exact-name
+         :line-range {:beg nil :end 2}]
+        ["line to end"
+         "file:tiny.org::7-"
+         "tiny.org" :exact-name
+         :line-range {:beg 7 :end nil}]
+        ["character range"
+         "tiny.org::5,40"
+         "tiny.org" :exact-name
+         :char-range {:beg 5 :end 40}]
+        ["character from start"
+         "file:tiny.org::,20"
+         "tiny.org" :exact-name
+         :char-range {:beg nil :end 20}]
+        ["character to end"
+         "file:tiny.org::75,"
+         "tiny.org" :exact-name
+         :char-range {:beg 75 :end nil}]
+        ["percent range"
+         "100lines::1%-3%"
+         "100lines" :exact-name
+         :percent-range {:beg 1 :end 3}]
+        ["native org: heading"
+         "file:tiny.org::*decoy 1"
+         "tiny.org" :exact-name
+         :org-heading {:heading "decoy 1"}]
+        ["exact string match range"
+         "file:dummy.org::in 2101...for great justice"
+         "dummy.org" :exact-name
+         :token-bound {:token-beg "in 2101"
+                       :token-end "for great justice"}]
+        ["glob file name"
+         "file:d*y.org::*huh"
+         "d*y.org" :glob-name
+         :org-heading {:heading "huh"}]
+        ["fuzzy find file by content +"
+         "grep:ZZ+you::*huh"
+         "ZZ+you" :grep-content
+         :org-heading {:heading "huh"}]
+        ["fuzzy find file by content raw space"
+         "grep:ZZ you::*huh"
+         "ZZ you" :grep-content
+         :org-heading {:heading "huh"}]
+        ["fuzzy find file by html entity"
+         "grep:ZZ%20you::*huh"
+         "ZZ you" :grep-content
+         :org-heading {:heading "huh"}]
+        ["constrict by org node ID"
+         "xcl:dummy.org?id=my-node-id"
+         "dummy.org" :exact-name
+         :org-node-id {:id "my-node-id"}]
+        ["constrict by first token range"
+         "xcl:dummy.org?s=in 2101...for great justice."
+         "dummy.org" :exact-name
+         :token-bound {:token-beg "in 2101"
+                       :token-end "for great justice."}]
+        ["constrict by nearest line"
+         "xcl:dummy.org?line=support+scheduled"
+         "dummy.org" :exact-name
+         :line-with-match {:query-string "support+scheduled"}]
+        ["constrict by first matching paragraph"
+         "xcl:dummy.org?para=what+happen"
+         "dummy.org" :exact-name
+         :paragraph-with-match
+         {:query-string "what+happen"}]
+        ["constrict by first matching section"
+         "xcl:dummy.org?section=famous+script"
+         "dummy.org" :exact-name
+         :org-section-with-match {:query-string "famous+script"}]]
+       (map (fn [[desc link
+                  -resolver-path
+                  -resolver-method
+                  -main-resolver-type
+                  -main-resolver-bound]]
+              (let [expected
+                    {:content-resolvers [{:type -main-resolver-type
+                                          :bound -main-resolver-bound}]
+                     :resource-resolver-path -resolver-path
+                     :resource-resolver-method -resolver-method}]
+                [(fn []
+                   (let [received (sc/parse-link link)
+                         success? (->> (keys expected)
+                                       (map (fn [k]
+                                              (= (k expected)
+                                                 (k received))))
+                                       (every? identity))]
+                     (if (get-in @view-state [:hide-passing?])
+                       nil
+                       [:tr
+                        [:td
+                         {:style {:background-color
+                                  (case success?
+                                    true "lime"
+                                    false "red"
+                                    "")
+                                  :color "white"}}
+                         (case success?
+                           true "PASS"
+                           false "FAIL"
+                           "")]
+                        [:td desc]
+                        [:td [:code link]]
+                        [:td (render-map expected)]
+                        [:td (render-map received)]])))])))
        (concat [:tbody
                 [:tr
                  [:th "PASS?"]
@@ -292,6 +411,19 @@ aye aye aye??-2@??-1@"
     ;;  [:div {:style {:clear "both"}}]]
     ]
    (gdom/getElement "main-app"))
+  (let [view-state (r/atom {:hide-passing? false})]
+    (r/render
+     [:div
+      [:div
+       [:label
+        [:input
+         {:type "checkbox"
+          :on-change #(swap! view-state update :hide-passing? not)}]
+        "hide passing?"]]
+
+      [:h2 "link test view"]
+      [:div (render-link-test-view! view-state)]
+     (gdom/getElement "main-app")))
   )
 
 (main)
