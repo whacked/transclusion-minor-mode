@@ -29,6 +29,71 @@
        content-resolver-method-type
        resource-address
        match-content])
+(defn render-resource-resolver-test-view! [view-state]
+  (let [cases [["exact match"
+                "LICENSE" "LICENSE"]
+               ["exact match"
+                "file:tiny.org" "tiny.org"]
+               ["glob file name"
+                "file:d*y.org" "dummy.org"]
+               ["fuzzy find file by content +"
+                "grep:ZZ+you" "dummy.org"]]]
+    (->> cases
+         (map (fn [[desc link expected-name]]
+                (let [received-name (r/atom nil)]
+                  [(fn []
+                     (sc/get-resource-match-async
+                      ;; candidate-seq-loader-async
+                      (fn [resource-name-matcher
+                           callback]
+                        (->> (corpus/list-files
+                              resource-name-matcher)
+                             (callback)))
+                      ;; content-loader-async
+                      (fn [resolved-spec
+                           callback]
+                        (let [path (:resource-resolver-path resolved-spec)]
+                          (when-let [content (corpus/file-cache path)]
+                            (callback content))))
+                      ;; link
+                      link
+                      ;; callback
+                      (fn [resolved-resource-name]
+                        (reset! received-name resolved-resource-name)))
+                     
+                     (let [success? (if (nil? @received-name)
+                                      nil
+                                      (= expected-name @received-name))]
+                       (if-not (and (get-in @view-state [:hide-passing?])
+                                    success?)
+                         [:tr
+                          [:td
+                           {:style (case success?
+                                     true {:background-color "lime" :color "white"}
+                                     false {:background-color "red" :color "white"}
+                                     {})}
+                           (case success?
+                             true "PASS"
+                             false "FAIL"
+                             "")]
+                          [:td desc]
+                          [:td link]
+                          [:td expected-name]
+                          [:td @received-name]])))])))
+         (concat [:tbody
+                  [:tr
+                   [:th "PASS?"]
+                   [:th "description"]
+                   [:th "link expression"]
+                   [:th "expected"]
+                   [:th "received"]]])
+         (vec)
+         (vector :table
+                 {:style {:border-collapse "collapse"}}
+                 [:style "td { border: 1px solid gray; }"])
+         (vec)
+         (vector :div
+                 [:h2 "resource resolver test"]))))
 
   (->> [
 
@@ -420,8 +485,8 @@ aye aye aye??-2@??-1@"
          {:type "checkbox"
           :on-change #(swap! view-state update :hide-passing? not)}]
         "hide passing?"]]
-
-      [:h2 "link test view"]
+      
+      [:div (render-resource-resolver-test-view! view-state)]
       [:div (render-link-test-view! view-state)]
      (gdom/getElement "main-app")))
   )
