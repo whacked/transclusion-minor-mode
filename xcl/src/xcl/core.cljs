@@ -200,6 +200,64 @@
                                      
                                      :else :exact-name)
      :content-resolvers (or maybe-resolvers [{:type :whole-file}])}))
+
+(defn get-resource-match-async
+  [candidate-seq-loader-async
+   content-loader-async
+   link
+   callback-on-received-match]
+
+  (let [resolved (parse-link link)
+        resource-resolver-path (:resource-resolver-path resolved)
+        resource-resolver-method (:resource-resolver-method resolved)
+        content-matcher-async
+        (case resource-resolver-method
+          :exact-name (fn [matching-resources]
+                        (when-let [match (->> matching-resources
+                                              (filter
+                                               (partial = resource-resolver-path))
+                                              (first))]
+                          (callback-on-received-match match)))
+
+          :glob-name (fn [matching-resources]
+                       (let [file-pattern (-> resource-resolver-path
+                                              (clojure.string/replace "*" ".*")
+                                              (re-pattern)) ]
+                         (when-let [match (->> matching-resources
+                                               (filter
+                                                (fn [p] (re-find file-pattern p)))
+                                               (first))]
+                           (callback-on-received-match match))))
+
+          :grep-content (fn [matching-resources]
+                          (let [grep-pattern (-> resource-resolver-path
+                                                 (clojure.string/replace "+" " ")
+                                                 (clojure.string/replace "%20" " ")
+                                                 (re-pattern))
+                                maybe-load-content-async!
+                                (fn maybe-load-content-async! [candidates]
+                                  (when-not (empty? candidates)
+                                    (let [fname (first candidates)]
+                                      (content-loader-async
+                                       (assoc resolved
+                                              :resource-resolver-path
+                                              fname)
+                                       (fn [content]
+                                         (if (re-find grep-pattern content)
+                                           (callback-on-received-match fname)
+                                           (maybe-load-content-async!
+                                            (rest candidates))))))))]
+                            (maybe-load-content-async!
+                             matching-resources)))
+
+          (fn [matching-resources]
+            (js/console.error (str "ERROR: unhandled resolver: "
+                                   resource-resolver-method))))]
+    (candidate-seq-loader-async
+     resource-resolver-path
+     (fn [matching-resources]
+       (content-matcher-async matching-resources)))))
+
     
     (js/console.log
      (str "%c===content resolver===%c"
