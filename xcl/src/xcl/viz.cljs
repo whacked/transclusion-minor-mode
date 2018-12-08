@@ -334,17 +334,40 @@
         ["constrict by first matching section"
          "xcl:dummy.org?section=famous+script"
          "dummy.org" :exact-name
-         :org-section-with-match {:query-string "famous+script"}]]
+         :org-section-with-match {:query-string "famous+script"}]
+        ["grab text from epub"
+         "xcl:alice.epub?p=2-&s=Would you tell me...walk long enough"
+         "alice.epub" :exact-name
+         nil
+         [{:type :page-number
+           :bound {:beg 2 :end nil}}
+          {:type :token-bound
+           :bound {:token-beg "Would you tell me"
+                   :token-end "walk long enough"}}]]
+        ["grab text from pdf"
+         "xcl:tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
+         "tracemonkey.pdf" :exact-name
+         nil
+         [{:type :page-number
+           :bound {:beg 3 :end 3}}
+          {:type :token-bound
+           :bound {:token-beg "Monkey observes that"
+                   :token-end "so TraceMonkey attempts"}}]]
+        ]
        (map (fn [[desc link
                   -resolver-path
                   -resolver-method
-                  -main-resolver-type
-                  -main-resolver-bound]]
+                  -maybe-main-resolver-type
+                  -maybe-main-resolver-bound]]
               (let [expected
-                    {:content-resolvers [{:type -main-resolver-type
-                                          :bound -main-resolver-bound}]
-                     :resource-resolver-path -resolver-path
-                     :resource-resolver-method -resolver-method}]
+                    (assoc
+                     {:resource-resolver-path -resolver-path
+                      :resource-resolver-method -resolver-method}
+                     :content-resolvers
+                     (if -maybe-main-resolver-type
+                       [{:type -maybe-main-resolver-type
+                         :bound -maybe-main-resolver-bound}]
+                       -maybe-main-resolver-bound))]
                 [(fn []
                    (let [received (sc/parse-link link)
                          success? (->> (keys expected)
@@ -352,7 +375,8 @@
                                               (= (k expected)
                                                  (k received))))
                                        (every? identity))]
-                     (if (get-in @view-state [:hide-passing?])
+                     (if (and success?
+                              (get-in @view-state [:hide-passing?]))
                        nil
                        [:tr
                         [:td
@@ -381,7 +405,9 @@
        (vector :table
                {:style {:border-collapse "collapse"}}
                [:style "td { border: 1px solid gray; }"])
-       (vec)))
+       (vec)
+       (vector :div
+               [:h2 "link test view"])))
 
 (defn render-transclusion-test-view! []
   (let [textarea (fn [content]

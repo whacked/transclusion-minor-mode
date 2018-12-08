@@ -131,10 +131,21 @@
 (def url-style-constrictor-matchers
   [[:org-node-id
     (make-named-matcher #"id=(\S+)" [:id])]
+   
    [:page-number
-    (make-named-matcher #"p=(\d+)"
-                        [:page-number]
-                        [string-to-int])]
+    (let [page-range-matcher
+          (make-named-matcher #"p=(\d+)?(-)?(\d+)?"
+                              [:beg :range-marker :end]
+                              [string-to-int
+                               identity
+                               string-to-int])]
+      (fn [s]
+        (when-let [match (page-range-matcher s)]
+          (if-not (:range-marker match)
+            (assoc (select-keys match [:beg])
+                   :end (:beg match))
+            (select-keys match [:beg :end])))))]
+   
    [:token-bound
     (make-named-matcher #"s=(\S.+)\.\.\.(\S.+)"
                         [:token-beg :token-end])]
