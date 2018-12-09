@@ -228,7 +228,9 @@
                                               (filter
                                                (partial = resource-resolver-path))
                                               (first))]
-                          (callback-on-received-match match)))
+                          (callback-on-received-match
+                           (assoc resolved
+                                  :resource-resolver-path match))))
 
           :glob-name (fn [matching-resources]
                        (let [file-pattern (-> resource-resolver-path
@@ -238,7 +240,9 @@
                                                (filter
                                                 (fn [p] (re-find file-pattern p)))
                                                (first))]
-                           (callback-on-received-match match))))
+                           (callback-on-received-match
+                            (assoc resolved
+                                   :resource-resolver-path match)))))
 
           :grep-content (fn [matching-resources]
                           (let [grep-pattern (-> resource-resolver-path
@@ -248,19 +252,24 @@
                                 maybe-load-content-async!
                                 (fn maybe-load-content-async! [candidates]
                                   (when-not (empty? candidates)
-                                    (let [fname (first candidates)]
+                                    (let [candidate-spec (first candidates)
+                                          fname (:resource-resolver-path candidate-spec)]
                                       (content-loader-async
                                        (assoc resolved
                                               :resource-resolver-path
                                               fname)
                                        (fn [content]
                                          (if (re-find grep-pattern content)
-                                           (callback-on-received-match fname)
+                                           (callback-on-received-match
+                                            candidate-spec)
                                            (maybe-load-content-async!
                                             (rest candidates))))))))]
-                            (maybe-load-content-async!
-                             matching-resources)))
-
+                            (->> matching-resources
+                                 (map (fn [match-name]
+                                        (assoc resolved
+                                               :resource-resolver-path match-name)))
+                                 (maybe-load-content-async!))))
+          
           (fn [matching-resources]
             (js/console.error (str "ERROR: unhandled resolver: "
                                    resource-resolver-method))))]
@@ -338,23 +347,21 @@
 (defn render-transclusion
   "`candidate-seq-loader` should be a function which
    returns a seq of all the known file names
-   `content-loader-async` should be a function which,
+   `content-loader` should be a function which,
    when passed the :resource-address parameter from a `resolved-spec`,
-   and a callback function,calls the callback with the full text of
-   the target resource when ready (generally a file)
-
+   returns the full text of the target resource (generally a file)
    `postprocessor-coll` is potentially an iterable of functions
    of type (str, transclusion-spec, depth) -> str
 
   the postprocessing will be applied after every transclusion operation
   "
-  [candidate-seq-loader content-loader-async
+  [candidate-seq-loader content-loader
    source-text & postprocessor-coll]
   (let [inner-renderer
         (fn inner-renderer [depth
                             visited?
                             candidate-seq-loader
-                            content-loader-async
+                            content-loader
                             source-text
                             & postprocessor-coll]
           (loop [remain (parse-transclusion-directive source-text)
@@ -369,12 +376,9 @@
                                   matched-path]] (first remain)
                     interim-string (when (< prev-index match-index)
                                      (subs source-text prev-index match-index))
-                    resolved-spec (parse-link
-                                   candidate-seq-loader
-                                   content-loader-async
-                                   matched-path)
+                    resolved-spec (parse-link matched-path)
                     resolved-file-name (resolve-resource-address
-                                        (:resource-address resolved-spec))
+                                        (:resource-resolver-path resolved-spec))
 
                     postprocess
                     (fn [content]
@@ -383,6 +387,8 @@
                                  input resolved-spec depth))
                               content
                               postprocessor-coll))
+
+                    maybe-content (content-loader resolved-file-name)
                     ]
                 (if (visited? resolved-file-name)
                   source-text
@@ -392,21 +398,25 @@
                           buffer
                           interim-string
                           (if-let [rendered-string
-                                   (:match-content resolved-spec)]
+                                   (when maybe-content
+                                     (some-> (ci/resolve-content
+                                              resolved-spec
+                                              maybe-content)
+                                             (clojure.string/trim)))]
                             (postprocess
                              (apply
                               inner-renderer
                               (inc depth)
                               (conj visited? resolved-file-name)
                               candidate-seq-loader
-                              content-loader-async
+                              content-loader
                               rendered-string
                               postprocessor-coll))
                             matched-string))))))))]
     (apply inner-renderer
-           1 ;; first detected transclusion starts at depth 1
+           1   ;; first detected transclusion starts at depth 1
            #{} ;; visited?
-           candidate-seq-loader content-loader-async source-text
+           candidate-seq-loader content-loader source-text
            postprocessor-coll)))
 
 (defn render-transclusion-nodejs

@@ -10,7 +10,7 @@
 
 (defn find-first-matching-string-element [spec string-elements]
   (let [match-tokens
-        (some-> (get-in spec [:content-boundary :query-string])
+        (some-> (get-in spec [:bound :query-string])
                 (clojure.string/lower-case)
                 (clojure.string/split #"\+"))]
     (some->> string-elements
@@ -244,10 +244,148 @@
                                 (:type resolver-spec))]
     registered-resolver
     (do
-      (warn "UNKNOWN RESOLVER" (pr-str (:type resolver-spec)))
+      (warn "UNKNOWN RESOLVER"
+            (pr-str (:type resolver-spec))
+            " in "
+            (pr-str resolver-spec))
       (@$resolver :whole-file))))
 
 (defn resolve-content [resolved-spec content]
-  (let [resolver (-> (:content-resolver-method resolved-spec :whole-file)
-                     (get-resolver))]
-    (resolver resolved-spec content)))
+  (when content
+    (let [final-resolver-spec
+          (->> resolved-spec
+               (:content-resolvers)
+               (last))
+          
+          resolver (get-resolver
+                    final-resolver-spec)]
+      (resolver final-resolver-spec content))))
+
+;; attempt to load external content loaders
+(def $IS-IN-BROWSER (and js/window))
+
+(def $WEB-CONTENT-ROOT "/")
+
+;; pdf
+(when-let [pdfjsLib (aget js/window "pdfjsLib")]
+  (ext/register-loader!
+   "pdf"
+   (fn [resource-address callback]
+     (let [file-name (:resource-resolver-path resource-address)]
+       (if-not file-name
+         (js/alert (str "NO SUCH FILE: " file-name))
+         (let [maybe-page-number-bound
+               (some->> resource-address
+                        (:content-resolvers)
+                        (filter (fn [resolver]
+                                  (= (:type resolver)
+                                     :page-number)))
+                        (first)
+                        (:bound))]
+           (let [rel-uri (str $WEB-CONTENT-ROOT
+                              file-name)]
+             (-> pdfjsLib
+                 (.getDocument rel-uri)
+                 (.then
+                  (fn [pdf]
+                    (let [count-promises (clj->js [])
+                          page-beg (or (:beg maybe-page-number-bound) 1)
+                          page-end (or (:end maybe-page-number-bound)
+                                       (aget pdf "numPages"))]
+                      (doseq [n (range page-beg (inc page-end))]
+                        (let [page (.getPage pdf n)]
+                          (.push count-promises
+                                 (-> page
+                                     (.then (fn [p]
+                                              (-> p
+                                                  (.getTextContent)
+                                                  (.then (fn [text]
+                                                           (-> (aget text "items")
+                                                               (.map (fn [s]
+                                                                       (aget s "str")))
+                                                               (.join " ")))))))))))
+                      (-> js/Promise
+                          (.all count-promises)
+                          (.then (fn [texts]
+                                   (callback (.join texts " "))))))))))))))))
+
+(def Node-TEXT_NODE (aget js/Node "TEXT_NODE"))
+;; using .innerText or .textContent causes <br> tags to be collapsed,
+;; and we end up with strange text fragments.  couldn't find an easy
+;; way to concatenate all text nodes with extra spacing, so here we
+;; use a custom text node collector.
+(defn get-all-text
+  ([dom-node]
+   (get-all-text dom-node []))
+  ([dom-node out]
+   (if (= (aget dom-node "nodeType")
+          Node-TEXT_NODE)
+     (conj out (clojure.string/trim
+                (aget dom-node "textContent")))
+     (->> (loop [remain (some->> (aget dom-node "childNodes")
+                                 (array-seq))
+                 collected []]
+            (if (empty? remain)
+              collected
+              (recur (rest remain)
+                     (concat collected
+                             (get-all-text (first remain) out)))))
+          (concat out)
+          (vec)))))
+
+;; epub
+(when-let [ePub (aget js/window "ePub")]
+  (ext/register-loader!
+   "epub"
+   (fn [resource-address callback]
+     (let [search-path (:resource-resolver-path resource-address)
+           maybe-page-number-bound (some->> resource-address
+                                            (:content-resolvers)
+                                            (filter (fn [resolver]
+                                                      (= (:type resolver)
+                                                         :page-number)))
+                                            (first)
+                                            (:bound))
+           rel-uri (str $WEB-CONTENT-ROOT
+                        search-path)
+           book (ePub rel-uri)]
+       (-> (aget book "ready")
+           (.then
+            (fn []
+              (let [dom-el (js/document.createElement "div")
+                    num-pages (aget book "spine" "length")
+                    page-beg (or (:beg maybe-page-number-bound)
+                                 1)
+                    page-end (or (:end maybe-page-number-bound)
+                                 num-pages)
+                    text-buffer (atom [])
+                    ]
+                (aset dom-el "style" "display:none;")
+                (js/document.body.appendChild dom-el)
+                (let [rendition (.renderTo
+                                 book dom-el
+                                 (clj->js {}))
+                      load-pages!
+                      (fn load-pages! [remain]
+                        (if (empty? remain)
+                          (do
+                            (.clear rendition)
+                            (-> dom-el
+                                (aget "parentNode")
+                                (.removeChild dom-el))
+                            (->> @text-buffer
+                                 (interpose "\n")
+                                 (apply str)
+                                 (callback)))
+                          (let [page-index (first remain)]
+                            (-> rendition
+                                (.display page-index)
+                                (.then
+                                 (fn [page]
+                                   (let [text-content
+                                         (->> (get-all-text (aget page "document" "body"))
+                                              (interpose "\n")
+                                              (apply str))]
+                                     (swap! text-buffer conj text-content))
+                                   (load-pages! (rest remain))))))))]
+                  (load-pages! (range (dec page-beg) page-end)))))))))))
