@@ -46,3 +46,8 @@
          load_content,
          load_content("xcl-test-3-c.org")))
    #+END_SRC
+
+* test files
+
+  - alice.epub :: http://www.gutenberg.org/ebooks/11
+  - tracemonkey.pdf :: https://github.com/mozilla/pdf.js/blob/master/test/pdfs/tracemonkey.pdf
