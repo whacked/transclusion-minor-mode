@@ -1,3 +1,5 @@
+(require 'subr-x)
+
 ;; ISSUES & LIMITATIONS
 ;; - modifying the overlay sets (buffer-modified-p) of the master
 ;;   buffer even if the master buffer was not modified; currently
@@ -447,8 +449,35 @@
          ;; extra parsing for tiddlywiki syntax
          (message "no transclusion directive found"))))))
 
+(defun parse-transclusion-directive (directive)
+  (when (string-match
+         "\s*transclude\s*(\s*\\(\[^:\]+\\)\s*:\s*\\(\[^\)\]+?\\)\s*)\s*$"
+         directive)
+    (list :protocol (match-string 1 directive)
+          :target (match-string 2 directive))))
+
+(defun macro-expression-at-point ()
+  (interactive)
+  (save-excursion
+    (let ((char-at-point (string (char-after (point)))))
+      (cond ((string= char-at-point "{")
+             (forward-char 2))
+            ((string= char-at-point "}")
+             (backward-char 2)))
+      (let ((maybe-start-match (search-backward "{{{" (line-beginning-position) t)))
+        (if (not maybe-start-match)
+            (message "nothing found")
+          (let ((maybe-end-match (search-forward "}}}" (line-end-position) t)))
+            (if (not maybe-end-match)
+                (message "nothing found")
+              (let ((macro-string
+                     (string-trim
+                      (buffer-substring-no-properties
+                       (+ maybe-start-match 3)
+                       (- maybe-end-match 3)))))
+                macro-string))))))))
+
 (define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
 (define-key transclude-mode-map (kbd "C-c E") 'freex-toggle-embed)
-
 
 (provide 'transclude-mode)
