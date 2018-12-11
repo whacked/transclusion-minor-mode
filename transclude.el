@@ -451,7 +451,7 @@
 
 (defun parse-transclusion-directive (directive)
   (when (string-match
-         "\s*transclude\s*(\s*\\(\[^:\]+\\)\s*:\s*\\(\[^\)\]+?\\)\s*)\s*$"
+         "\s*transclude\s*(\s*\\(\[^:\]+\\)\s*:\s*\\(.+?\\)\s*)\s*$"
          directive)
     (list :protocol (match-string 1 directive)
           :target (match-string 2 directive))))
