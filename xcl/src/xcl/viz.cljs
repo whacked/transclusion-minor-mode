@@ -5,8 +5,8 @@
             [xcl.corpus :as corpus]
             [xcl.common :refer [get-file-extension]]
             [xcl.content-interop :as ci]
-            [xcl.external :as ext]
-            ))
+            [xcl.external-js-content :as ext-js]
+            [xcl.external :as ext]))
 
 (defn get-static-content
   [search-path]
