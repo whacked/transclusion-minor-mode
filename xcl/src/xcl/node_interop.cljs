@@ -1,5 +1,40 @@
 (ns xcl.node-interop
-  (:require [xcl.core :refer [render-transclusion]]))
+  (:require [xcl.core :as sc]
+            [xcl.core :refer [render-transclusion]]
+            [xcl.external :as ext]
+            [xcl.pdfjslib-interop
+             :refer [pdfjslib-load-text
+                     set-pdfjslib!]]
+            ["pdfjs-dist" :as pdfjsLib]))
+
+(set-pdfjslib! pdfjsLib)
+(ext/register-loader!
+ "pdf"
+ (fn [resource-address callback]
+   (let [file-name (:resource-resolver-path resource-address)]
+     (if-not file-name
+       (js/console.warn (str "NO SUCH FILE: " file-name))
+       (let [maybe-page-number-bound
+             (some->> resource-address
+                      (:content-resolvers)
+                      (filter (fn [resolver]
+                                (= (:type resolver)
+                                   :page-number)))
+                      (first)
+                      (:bound))]
+         (let [rel-uri (str file-name)]
+           (pdfjslib-load-text
+            rel-uri
+            (:beg maybe-page-number-bound)
+            (:end maybe-page-number-bound)
+            callback)))))))
+         (let [rel-uri (str "./public/"
+                            file-name)]
+           (pdfjslib-load-text
+            rel-uri
+            (:beg maybe-page-number-bound)
+            (:end maybe-page-number-bound)
+            callback)))))))
 
 (defn render
   "compatibility function for calling from nodejs; wraps all fns in

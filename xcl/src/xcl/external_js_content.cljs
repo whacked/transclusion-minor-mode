@@ -1,7 +1,10 @@
 (ns xcl.external-js-content
   (:require [xcl.external :as ext]
             [xcl.content-interop :as ci
-             :refer [get-all-text]]))
+             :refer [get-all-text]]
+            [xcl.pdfjslib-interop
+             :refer [set-pdfjslib!
+                     pdfjslib-load-text]]))
 
 (def $WEB-CONTENT-ROOT "/")
 
@@ -9,6 +12,7 @@
 
 ;; pdf
 (when-let [pdfjsLib (aget js/window "pdfjsLib")]
+  (set-pdfjslib! pdfjsLib)
   (ext/register-loader!
    "pdf"
    (fn [resource-address callback]
@@ -25,30 +29,11 @@
                         (:bound))]
            (let [rel-uri (str $WEB-CONTENT-ROOT
                               file-name)]
-             (-> pdfjsLib
-                 (.getDocument rel-uri)
-                 (.then
-                  (fn [pdf]
-                    (let [count-promises (clj->js [])
-                          page-beg (or (:beg maybe-page-number-bound) 1)
-                          page-end (or (:end maybe-page-number-bound)
-                                       (aget pdf "numPages"))]
-                      (doseq [n (range page-beg (inc page-end))]
-                        (let [page (.getPage pdf n)]
-                          (.push count-promises
-                                 (-> page
-                                     (.then (fn [p]
-                                              (-> p
-                                                  (.getTextContent)
-                                                  (.then (fn [text]
-                                                           (-> (aget text "items")
-                                                               (.map (fn [s]
-                                                                       (aget s "str")))
-                                                               (.join " ")))))))))))
-                      (-> js/Promise
-                          (.all count-promises)
-                          (.then (fn [texts]
-                                   (callback (.join texts " "))))))))))))))))
+             (pdfjslib-load-text
+              rel-uri
+              (:beg maybe-page-number-bound)
+              (:end maybe-page-number-bound)
+              callback))))))))
 
 ;; epub
 (when-let [ePub (aget js/window "ePub")]
