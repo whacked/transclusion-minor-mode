@@ -285,3 +285,13 @@
                              (get-all-text (first remain) out)))))
           (concat out)
           (vec)))))
+
+(defn get-maybe-page-number-bound
+  [resource-address]
+  (some->> resource-address
+           (:content-resolvers)
+           (filter (fn [resolver]
+                     (= (:type resolver)
+                        :page-number)))
+           (first)
+           (:bound)))

@@ -5,6 +5,8 @@
             [xcl.pdfjslib-interop
              :refer [pdfjslib-load-text
                      set-pdfjslib!]]
+            [xcl.content-interop :as ci
+             :refer [get-all-text]]
             ["pdfjs-dist" :as pdfjsLib]))
 
 (set-pdfjslib! pdfjsLib)
@@ -15,21 +17,13 @@
      (if-not file-name
        (js/console.warn (str "NO SUCH FILE: " file-name))
        (let [maybe-page-number-bound
-             (some->> resource-address
-                      (:content-resolvers)
-                      (filter (fn [resolver]
-                                (= (:type resolver)
-                                   :page-number)))
-                      (first)
-                      (:bound))]
+             (ci/get-maybe-page-number-bound resource-address)]
          (let [rel-uri (str file-name)]
            (pdfjslib-load-text
             rel-uri
             (:beg maybe-page-number-bound)
             (:end maybe-page-number-bound)
             callback)))))))
-         (let [rel-uri (str "./public/"
-                            file-name)]
            (pdfjslib-load-text
             rel-uri
             (:beg maybe-page-number-bound)

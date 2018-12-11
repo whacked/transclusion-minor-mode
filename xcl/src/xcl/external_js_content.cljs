@@ -20,13 +20,7 @@
        (if-not file-name
          (js/alert (str "NO SUCH FILE: " file-name))
          (let [maybe-page-number-bound
-               (some->> resource-address
-                        (:content-resolvers)
-                        (filter (fn [resolver]
-                                  (= (:type resolver)
-                                     :page-number)))
-                        (first)
-                        (:bound))]
+               (ci/get-maybe-page-number-bound resource-address)]
            (let [rel-uri (str $WEB-CONTENT-ROOT
                               file-name)]
              (pdfjslib-load-text
@@ -41,13 +35,8 @@
    "epub"
    (fn [resource-address callback]
      (let [search-path (:resource-resolver-path resource-address)
-           maybe-page-number-bound (some->> resource-address
-                                            (:content-resolvers)
-                                            (filter (fn [resolver]
-                                                      (= (:type resolver)
-                                                         :page-number)))
-                                            (first)
-                                            (:bound))
+           maybe-page-number-bound (ci/get-maybe-page-number-bound
+                                    resource-address)
            rel-uri (str $WEB-CONTENT-ROOT
                         search-path)
            book (ePub rel-uri)]
@@ -91,4 +80,3 @@
                                      (swap! text-buffer conj text-content))
                                    (load-pages! (rest remain))))))))]
                   (load-pages! (range (dec page-beg) page-end)))))))))))
-
