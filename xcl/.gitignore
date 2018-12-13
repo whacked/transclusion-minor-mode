@@ -35,7 +35,6 @@ pom.xml.asc
 .DS_Store
 yarn.lock
 package-lock.json
-/package.json
 *.log
 
 build
