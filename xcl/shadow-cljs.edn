@@ -25,6 +25,10 @@
                     :http-port 8020}
                    }
 
+  :node-test {:target :node-library
+              :output-to "build/test.js"
+              :exports {:main xcl.test/-main}}
+  
   :lib-sample {:target :node-library
                :output-to "build/transclusion.js"
                :exports {:render xcl.node-interop/render}}
