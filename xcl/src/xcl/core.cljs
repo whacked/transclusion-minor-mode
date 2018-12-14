@@ -419,17 +419,6 @@
            candidate-seq-loader content-loader source-text
            postprocessor-coll)))
 
-(defn render-transclusion-nodejs
-  "compatibility function for calling from nodejs; wraps all fns in
-  postprocessor-coll to ensure resultant object is native #js type
-  "
-  [candidate-seq-loader content-loader source-text & postprocessor-coll]
-  (->> postprocessor-coll
-       (map (fn [postprocessor-fn]
-              (fn [content xcl-spec depth]
-                (postprocessor-fn content (clj->js xcl-spec) depth))))
-       (apply render-transclusion
-              candidate-seq-loader content-loader source-text)))
 (defn find-successive-tokens-in-content
   ([content tokens]
    (find-successive-tokens-in-content content tokens 0))
