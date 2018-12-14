@@ -430,3 +430,92 @@
                 (postprocessor-fn content (clj->js xcl-spec) depth))))
        (apply render-transclusion
               candidate-seq-loader content-loader source-text)))
+(defn find-successive-tokens-in-content
+  ([content tokens]
+   (find-successive-tokens-in-content content tokens 0))
+  ([content tokens start-offset]
+   (loop [remain tokens
+          offset start-offset
+          out []]
+     (if (empty? remain)
+       (if (seq out)
+         out
+         nil)
+       (let [token (first remain)
+             content-substring (.substr content offset)
+             
+             ;; plain substring match
+             ;; maybe-index (.indexOf content-substring token)
+
+             ;; bounded regex candidate match
+             maybe-index
+             (loop [re-remain [(re-pattern (str "\\b" token "\\b"))
+                               (re-pattern (str "\\b" token))
+                               (re-pattern (str token "\\b"))]]
+               (if (empty? re-remain)
+                 nil
+                 (let [re (first re-remain)
+                       maybe-match (.exec re content-substring)]
+                   (if maybe-match
+                     (aget maybe-match "index")
+                     (recur (rest re-remain))))))]
+         (if (or (not maybe-index)
+                 (= -1 maybe-index))
+           out
+           (recur (rest remain)
+                  (+ offset maybe-index
+                     (count token))
+                  (conj out
+                        {:index (+ offset maybe-index)
+                         :length (count token)
+                         :token token}))))))))
+
+(defn find-content-matches-by-tokenization
+  [content targets]
+  (loop [remain targets
+         start-offset 0
+         out []]
+    (if (empty? remain)
+      out
+      (let [target-string (first remain)
+            tokens (-> target-string
+                       (clojure.string/trim)
+                       (clojure.string/split #"\s+"))
+            full-match-data (find-successive-tokens-in-content
+                             content
+                             tokens
+                             start-offset)]
+        (if (not= (count full-match-data)
+                  (count tokens))
+          out
+          (recur (rest remain)
+                 (let [{:keys [index length]} (last full-match-data)]
+                   (+ index length))
+                 (conj out full-match-data)))))))
+
+(defn find-corpus-matches-by-tokenization
+  [content-coll target-coll]
+  (loop [remain-content content-coll
+         remain-targets target-coll
+         index 0
+         out []]
+    (if (or (empty? remain-content)
+            (empty? remain-targets))
+      out
+      (let [content (first remain-content)
+            maybe-matches 
+            (find-content-matches-by-tokenization
+             content
+             remain-targets)
+
+            match-report (some->> maybe-matches
+                                  (map vector remain-targets)
+                                  (map (fn [[target matches]]
+                                         {:target target
+                                          :matches matches})))]
+        (recur
+         (rest remain-content)
+         (drop (count maybe-matches)
+               remain-targets)
+         (inc index)
+         (conj out match-report))))))

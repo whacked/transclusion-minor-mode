@@ -80,6 +80,112 @@
           (corpus/file-cache path)))
        (* 1000 (Math/random))))))
 
+(defn render-highlights-in-text [text highlights]
+  (loop [remain (reverse highlights)
+         current-index (count text)
+         out []]
+    (if (empty? remain)
+      (reverse
+       (if (= 0 current-index)
+             out
+             (conj out [:span (subs text 0 current-index)])))
+      (let [highlight (first remain)
+            h-index (:index highlight)
+            h-length (:length highlight)
+            h-end (+ h-index h-length)]
+        (recur (rest remain)
+               h-index
+               (conj (if (< h-end current-index)
+                       (conj out [:span (subs text h-end current-index)])
+                       out)
+                     [:span
+                      {:style {:border "1px solid red"}}
+                      (subs text h-index h-end)]))))))
+
+(defn render-text-anchoring-test-view! [view-state]
+  [:div
+
+   [:table
+    {:style {:border-collapse "collapse"}}
+    [:style "td { border: 1px solid gray; }"]
+    [:tbody
+     [:tr
+      [:th "content"]
+      [:th "target"]
+      [:th "matches"]]
+     (->> [[" a b c d f g "
+            " b d       f"]
+           [" one two three four five  "
+            "  four six "]]
+          (map (fn [[content target]]
+                 [:tr
+                  [:td content]
+                  [:td target]
+                  [:td
+                   [:pre
+                    (-> (sc/find-successive-tokens-in-content
+                         content
+                         (-> target
+                             (clojure.string/trim)
+                             (clojure.string/split #"\s+")))
+                        (pr-str))]]])))]]
+   
+   (let [doc-names ["tiny.org"
+                    "big.org"
+                    "fake.org"
+                    "dummy.org"
+                    "xcl-test-3-a.org"]
+         doc-blobs (map get-static-content doc-names)
+         targets
+         ["  fourth line "
+          " 5th   line "
+          "  fake      file  "
+          "ake"
+          "  you "
+          "you"
+          "  in    the  "
+          " in and CATS"
+          " aye aye"]
+
+         all-matches (sc/find-corpus-matches-by-tokenization
+                      doc-blobs targets)]
+     [:table
+      {:style {:border-collapse "collapse"}}
+      [:style "td { border: 1px solid gray; }"]
+      [:tbody
+       [:tr
+        [:th "index"]
+        [:th "corpus source"]
+        [:th "hit strings"]
+        [:th "(rendered) content"]
+        [:th "hits"]]
+       (->> (map vector (range (count doc-names)) doc-names doc-blobs)
+            (map (fn [[index fname content]]
+                   (let [matches-for-index
+                         (when-let [maybe-matches (get all-matches index)]
+                           maybe-matches)]
+                     [:tr
+                      [:td index]
+                      [:td fname]
+                      [:td
+                       [:ul
+                        (->> matches-for-index
+                             (map :target)
+                             (map (partial vector :li)))]
+                       ]
+                      [:td
+                       [:pre
+                        (render-highlights-in-text
+                         content
+                         (->> matches-for-index
+                              (map :matches)
+                              (apply concat)))]]
+                      [:td
+                       [:pre
+                        {:style {:font-size "xx-small"}}
+                        (-> (clj->js matches-for-index)
+                            (js/JSON.stringify nil 2))]]]))))]])])
+
 (defn render-resource-resolver-test-view! [view-state]
   (let [cases [["exact match"
                 "LICENSE" "LICENSE"]
@@ -482,6 +588,7 @@ aye aye aye??-2@??-1@"
       [:div (render-resource-resolver-test-view! view-state)]
       [:div (render-link-test-view! view-state)]
       [:div (render-transclusion-test-view! view-state)]
+      [:div (render-text-anchoring-test-view! view-state)]
       [:div {:style {:clear "both"}}]]
      (gdom/getElement "main-app"))))
 
