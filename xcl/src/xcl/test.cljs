@@ -111,63 +111,40 @@
         pdf-loader (@ext/$ExternalLoaders "pdf")
 
         on-found-file (fn [file-path]
-                        (let [rel-uri (str "file:///" file-path)
-                              getDocument (aget @pdfjslib/pdfjsLib "getDocument")]
-                          (js-invoke
-                           (getDocument rel-uri)
-                           "then"
-                           (fn [pdf]
-                             (let [count-promises (clj->js [])
-                                   page-beg 1
-                                   page-end (aget pdf "numPages")]
-                               (doseq [n (range page-beg (inc page-end))]
-                                 (let [page (js-invoke pdf "getPage" n)]
-                                   (.push count-promises
-                                          (js-invoke
-                                           page
-                                           "then"
-                                           (fn [p]
-                                             (-> p
-                                                 (js-invoke "getTextContent")
-                                                 (js-invoke "then"
-                                                            (fn [text]
-                                                              {:page n
-                                                               :text (-> (aget text "items")
-                                                                         (.map (fn [s]
-                                                                                 (aget s "str")))
-                                                                         (.join " "))}))))))))
-                               
-                               (-> js/Promise
-                                   (.all count-promises)
-                                   (.then (fn [pagetexts]
-                                            (let [_page-number-with-string
-                                                  (some->> pagetexts
-                                                           (filter
-                                                            (fn [{:keys [page text]}]
-                                                              (let [tokens (clojure.string/split target-string #"\s+")
-                                                                    maybe-matches
-                                                                    (sc/find-successive-tokens-in-content
-                                                                     text tokens)]
-                                                                (when (= (count maybe-matches)
-                                                                         (count tokens))
-                                                                  (js/console.log
-                                                                   (str "[zotero test OK]\n"
-                                                                        "    page: " page "\n"
-                                                                        "    "
-                                                                        (subs
-                                                                         text
-                                                                         (:index (first maybe-matches))
-                                                                         (+ (:index (last maybe-matches))
-                                                                            (:length (last maybe-matches))))
-                                                                        "\n\n"))
-                                                                  page))))
-                                                           (first)
-                                                           (:page))]
-                                              _page-number-with-string)
-                                            (signal-test-done!)))
-                                   (.catch (fn [err]
-                                             (js/console.error err)
-                                             (signal-test-done!)))))))))]
+                        (pdfjslib/process-pdf
+                         file-path
+                         (fn on-get-page-text [page-number text]
+                           {:page page-number
+                            :text text})
+                         (fn on-complete-page-texts [pagetexts]
+                           (let [_page-number-with-string
+                                 (some->> pagetexts
+                                          (filter
+                                           (fn [{:keys [page text]}]
+                                             (let [tokens (clojure.string/split target-string #"\s+")
+                                                   maybe-matches
+                                                   (sc/find-successive-tokens-in-content
+                                                    text tokens)]
+                                               (when (= (count maybe-matches)
+                                                        (count tokens))
+                                                 (js/console.log
+                                                  (str "[zotero test OK]\n"
+                                                       "    page: " page "\n"
+                                                       "    "
+                                                       (subs
+                                                        text
+                                                        (:index (first maybe-matches))
+                                                        (+ (:index (last maybe-matches))
+                                                           (:length (last maybe-matches))))
+                                                       "\n\n"))
+                                                 page))))
+                                          (first)
+                                          (:page))]
+                             _page-number-with-string)
+                           (signal-test-done!))
+                         (fn [err]
+                           (js/console.error err)
+                           (signal-test-done!))))]
     (-> $zotero-db
         (.all
          (aget sql "zoteroQueryByAttributes")
