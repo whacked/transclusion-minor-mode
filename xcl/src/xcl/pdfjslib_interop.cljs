@@ -6,6 +6,15 @@
 (defn set-pdfjslib! [lib-object]
   (reset! pdfjsLib lib-object))
 
+(defn pdf-page-text-items-to-string [pdf-text]
+  (-> (aget pdf-text "items")
+      (.map (fn [s]
+              (-> (aget s "str")
+                  (.replace "@" "@@"))))
+      (.join "@n")
+      (clojure.string/replace #"-@n" "-")
+      (clojure.string/replace #"@@" "@")))
+
 (defn pdfjslib-load-text
   [rel-uri
    maybe-page-beg
@@ -36,11 +45,7 @@
                        (-> p
                            (js-invoke "getTextContent")
                            (js-invoke "then"
-                                      (fn [text]
-                                        (-> (aget text "items")
-                                            (.map (fn [s]
-                                                    (aget s "str")))
-                                            (.join " "))))))))))
+                                      pdf-page-text-items-to-string)))))))
          (-> js/Promise
              (.all count-promises)
              (.then (fn [texts]
@@ -79,13 +84,11 @@
                           (-> p
                               (js-invoke "getTextContent")
                               (js-invoke "then"
-                                         (fn [text]
+                                         (fn [pdf-page-text]
                                            (on-get-page-text
                                             page-num
-                                            (-> (aget text "items")
-                                                (.map (fn [s]
-                                                        (aget s "str")))
-                                                (.join " ")))))))))))
+                                            (pdf-page-text-items-to-string
+                                             pdf-page-text))))))))))
             (-> js/Promise
                 (.all count-promises)
                 (.then on-complete-page-texts)
