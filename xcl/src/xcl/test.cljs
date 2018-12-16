@@ -3,6 +3,7 @@
             ["yesql" :as yesql]
             ["fs" :as fs]
             ["path" :as path]
+            ["multitransport-jsonrpc" :as jsonrpc]
             [xcl.core :as sc]
             [xcl.external :as ext]
             [xcl.pdfjslib-interop :as pdfjslib]
@@ -248,6 +249,11 @@
   (swap! all-tests inc)
   (test-func))
 
+(defn make-jsonrpc-client []
+  (jsonrpc/client.
+   (jsonrpc/transports.client.http.
+    "localhost" 8002 (clj->js {:path "/rpc"}))))
+
 (defn -main []
   (js/console.log
    (str "### script running from dir\n"
@@ -261,6 +267,44 @@
   (when $calibre-library-directory
     (add-node-test! calibre-test))
   (add-node-test! pdf-loader-test)
-  (add-node-test! epub-loader-test))
+  (add-node-test! epub-loader-test)
+
+  ;; these examples assume the hyperbloviate JSONRPC server is running
+  (add-node-test!
+   (fn []
+     (let [pdf-file-path (path-join
+                          (.cwd js/process)
+                          "public/tracemonkey.pdf")]
+       (ni/get-exact-text-from-partial-string-match
+        pdf-file-path
+        "Monkey observes that so TraceMonkey attempts"
+        (fn on-complete [{:keys [page excerpt]}]
+          (let [client (make-jsonrpc-client)]
+            (.request client
+                      "pdf"
+                      (clj->js {:path pdf-file-path
+                                :search excerpt})
+                      (fn [& args]
+                        (signal-test-done!)))))))))
+  
+  (add-node-test!
+   (fn []
+     (let [epub-file-path (path-join
+                           (.cwd js/process) "public/alice.epub")]
+       
+       (ni/get-exact-text-from-partial-string-match
+        epub-file-path
+        "Would you tell me, please walk long enough"
+        (fn on-complete [{:keys [excerpt]}]
+          (let [client (make-jsonrpc-client)
+                ;; the epub search has trouble with multi line strings
+                first-line (-> (clojure.string/split-lines excerpt)
+                               (first))]
+            (.request client
+                      "epub"
+                      (clj->js {:path epub-file-path
+                                :search first-line})
+                      (fn [& args]
+                        (signal-test-done!))))))))))
 
 (-main)

@@ -12,8 +12,8 @@
 (defn load-and-get-text [file-name
                          maybe-page-beg
                          maybe-page-end
-                         on-get-page
-                         on-complete]
+                         on-get-section
+                         on-complete-all-sections]
   (let [epub (new EPub file-name)]
     (doto epub
       (.on "end"
@@ -57,18 +57,18 @@
                                                (aget node "textContent")))
                                         (interpose " ")
                                         (apply str)))
-                                 (when on-get-page
-                                   (on-get-page section-data-out))
+                                 (when on-get-section
+                                   (on-get-section section-data-out))
                                  
                                  (swap! out conj section-data-out))
                                
                                ;; TODO: may be more useful if preserve the section information.
                                ;; Ref node_interop.cljs:render() example run
                                (when (and
-                                      on-complete
+                                      on-complete-all-sections
                                       (= (count @out)
                                          (count page-keep)))
                                  (->> @out
                                       (sort-by :section)
-                                      (on-complete)))))))))))
+                                      (on-complete-all-sections)))))))))))
       (.parse))))

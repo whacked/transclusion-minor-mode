@@ -3,6 +3,7 @@
     "create-react-class": "^15.6.3",
     "epub": "^1.1.0",
     "jsdom": "^13.0.0",
+    "multitransport-jsonrpc": "^0.9.11",
     "pdfjs-dist": "^2.0.943",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
