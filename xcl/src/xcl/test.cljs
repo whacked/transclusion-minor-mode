@@ -232,7 +232,7 @@
 (defn epub-loader-test []
   (let [external-loader (@ext/$ExternalLoaders "epub")
         resource-spec (sc/parse-link
-                       "xcl:./public/alice.epub?p=2-&s=Would you tell me, please...walk long enough")]
+                       "xcl:./public/alice.epub?p=2&s=Would you tell me, please...walk long enough")]
     (external-loader
      resource-spec
      (fn [text]
