@@ -419,14 +419,240 @@
            candidate-seq-loader content-loader source-text
            postprocessor-coll)))
 
-(defn render-transclusion-nodejs
-  "compatibility function for calling from nodejs; wraps all fns in
-  postprocessor-coll to ensure resultant object is native #js type
+
+(defn find-match-candidate-index-in-content
+  [token content]
+  (loop [re-remain [(re-pattern (str "\\b" token "\\b"))
+                    (re-pattern (str "\\b" token))
+                    (re-pattern (str token "\\b"))]]
+    (if (empty? re-remain)
+      nil
+      (let [re (first re-remain)
+            maybe-match (.exec re content)]
+        (if maybe-match
+          (aget maybe-match "index")
+          (recur (rest re-remain)))))))
+
+(defn find-all-match-candidate-indexes-in-content
+  [token content]
+  
+  (comment
+    (= (find-all-match-candidate-indexes-in-content
+        "b" "a b b b c d e f f b b g")
+       [2 4 6 18 20]))
+
+  (let [content-length (count content)
+        token-length (count token)]
+    (loop [out []
+           offset 0]
+      (if-not (< offset content-length)
+        out
+        (if-let [maybe-index (find-match-candidate-index-in-content
+                              token (subs content offset))]
+          (recur (conj out (+ maybe-index offset))
+                 (+ offset 
+                    maybe-index
+                    token-length))
+          out)))))
+
+(defn find-match-candidate-index-in-content-backwards
+  [token content]
+  (let [rev-token (clojure.string/reverse token)
+        rev-content (clojure.string/reverse content)]
+    (when-let [match-index (find-match-candidate-index-in-content
+                            rev-token
+                            rev-content)]
+      (- (count content)
+         match-index (count token)))))
+
+(defn get-all-valid-token-match-arrangements
+  ([token-matches-coll]
+   (->> (get-all-valid-token-match-arrangements
+         token-matches-coll [])
+        (flatten)
+        (partition (count token-matches-coll))
+        (filter (fn [token-match-coll]
+                  (loop [tm-remain token-match-coll
+                         tm-prev nil]
+                    (if (empty? tm-remain)
+                      true
+                      (let [tm-cur (first tm-remain)]
+                        (if (< (:index tm-cur)
+                               (+ (:index tm-prev 0)
+                                  (:length tm-prev 0)))
+                          false
+                          (recur (rest tm-remain)
+                                 tm-cur)))))))))
+  ([token-matches-coll buf]
+   (if (empty? token-matches-coll)
+     buf
+     (->> (first token-matches-coll)
+          (map (fn [token-match]
+                 (get-all-valid-token-match-arrangements
+                  (rest token-matches-coll)
+                  (conj buf token-match))))))))
+
+(defn find-most-compact-token-matches-in-content
+  "for complex strings this will be >= O(n2)
+   the only optimization we take here is restricting
+   the token search to between the first occurrence
+   of the first token, the last occurrence of the
+   last token"
+  [content tokens]
+  (let [maybe-first-token-first-start-index
+        (find-match-candidate-index-in-content
+         (first tokens) content)
+
+        maybe-last-token-last-start-index
+        (find-match-candidate-index-in-content-backwards
+         (last tokens) content)]
+    (when (and maybe-first-token-first-start-index
+               maybe-last-token-last-start-index)
+      (let [restricted-substring
+            (subs content
+                  maybe-first-token-first-start-index
+                  (+ maybe-last-token-last-start-index
+                     (count (last tokens))))
+            
+            all-matches
+            (->> tokens
+                 (map
+                  (fn [token]
+                    (->> (find-all-match-candidate-indexes-in-content
+                          token restricted-substring)
+                         (map (fn [index]
+                                {:index (+ index
+                                           maybe-first-token-first-start-index)
+                                 :token token
+                                 :length (count token)}))))))
+
+            all-valid-arrangements
+            (get-all-valid-token-match-arrangements all-matches)
+
+            compute-spread (fn [arrangement]
+                             (- (:index (last arrangement))
+                                (:index (first arrangement))))]
+        (->> all-valid-arrangements
+             (map (fn [arrangement]
+                    [(compute-spread arrangement)
+                     arrangement]))
+             (sort-by first)
+             (first)
+             (last))))))
+
+(defn find-successive-tokens-in-content
+  "this method simply searches forward for the first match,
+   then find the next match, and so on.
+
+  in the inner let form, you can change the match method from a
+  boundex regex candidate match (current default) to a plain subtring
+  match (using indexOf), which will be faster.
+  
+  An example of the matching impact in practice: given
+  - tokens 'in ring'
+  - content 'looking within stringy rings'
+
+  the substring match, using a non-compact matching method, will match
+  'look[in]g within st[ring]y rints', returning
+  'looking within stringy'
+
+  the regex matcher's logic will for example:
+    - ACCEPT 'in'     because exact match
+    - ACCEPT 'spin' because .*in
+    - ACCEPT 'inside' because in.*
+    - REJECT 'finish' because .*in.*
+    - REJECT 'looking' because .*in.*
+  
+  thus, using non-compact matching, for the example above, will match
+  'looking with[in] stringy [ring]s', returning
+  'within stringy rings'
+  
+  given a search query of 'in ring', I think the regex matcher
+  will give a more intuitive result
   "
-  [candidate-seq-loader content-loader source-text & postprocessor-coll]
-  (->> postprocessor-coll
-       (map (fn [postprocessor-fn]
-              (fn [content xcl-spec depth]
-                (postprocessor-fn content (clj->js xcl-spec) depth))))
-       (apply render-transclusion
-              candidate-seq-loader content-loader source-text)))
+  ([content tokens]
+   (find-successive-tokens-in-content content tokens 0))
+  ([content tokens start-offset]
+   (loop [remain tokens
+          offset start-offset
+          out []]
+     (if (empty? remain)
+       (if (seq out)
+         out
+         nil)
+       (let [token (first remain)
+             content-substring (.substr content offset)
+             
+             ;; plain substring match
+             ;; maybe-index (.indexOf content-substring token)
+             
+             ;; bounded regex candidate match
+             maybe-index
+             (find-match-candidate-index-in-content
+              token content-substring)]
+         (if (or (not maybe-index)
+                 (= -1 maybe-index))
+           out
+           (recur (rest remain)
+                  (+ offset maybe-index
+                     (count token))
+                  (conj out
+                        {:index (+ offset maybe-index)
+                         :length (count token)
+                         :token token}))))))))
+
+(defn find-content-matches-by-tokenization
+  [content targets & {:keys [compact?]}]
+  (loop [remain targets
+         start-offset 0
+         out []]
+    (if (empty? remain)
+      out
+      (let [target-string (first remain)
+            tokens (-> target-string
+                       (clojure.string/trim)
+                       (clojure.string/split #"\s+"))
+            matcher-fn (if compact?
+                         find-most-compact-token-matches-in-content
+                         find-successive-tokens-in-content)
+            full-match-data (some->> (matcher-fn
+                                      (subs content start-offset)
+                                      tokens)
+                                     (map (fn [token-match]
+                                            (update token-match :index
+                                                    (partial + start-offset)))))]
+        (if (not= (count full-match-data)
+                  (count tokens))
+          out
+          (recur (rest remain)
+                 (let [{:keys [index length]} (last full-match-data)]
+                   (+ index length))
+                 (conj out full-match-data)))))))
+
+(defn find-corpus-matches-by-tokenization
+  [content-coll target-coll & {:keys [compact?]}]
+  (loop [remain-content content-coll
+         remain-targets target-coll
+         index 0
+         out []]
+    (if (or (empty? remain-content)
+            (empty? remain-targets))
+      out
+      (let [content (first remain-content)
+            maybe-matches 
+            (find-content-matches-by-tokenization
+             content
+             remain-targets
+             :compact? compact?)
+
+            match-report (some->> maybe-matches
+                                  (map vector remain-targets)
+                                  (map (fn [[target matches]]
+                                         {:target target
+                                          :matches matches})))]
+        (recur
+         (rest remain-content)
+         (drop (count maybe-matches)
+               remain-targets)
+         (inc index)
+         (conj out match-report))))))
