@@ -5,14 +5,34 @@
   
 * test environment setup
   
-  #+BEGIN_SRC sh :eval never
-  yarn global add shadow-cljs
-  yarn add react create-react-class react-dom
-  shadow-cljs watch browser-sample
-  #+END_SRC
+** browser testing
 
-  open the browser to http://localhost:8020/ to load the tests
+   #+BEGIN_SRC sh :eval never
+   yarn global add shadow-cljs
+   yarn add react create-react-class react-dom
+   shadow-cljs watch browser-sample
+   #+END_SRC
 
+   open the browser to http://localhost:8020/ to load the tests
+
+** node library testing
+
+   #+BEGIN_SRC sh :eval never
+   shadow-cljs watch node-test
+   #+END_SRC
+
+   this will watch + recompile the =node-test= profile, which builds a
+   file that runs nodejs examples. To run it in a watch loop I am
+   using [[https://github.com/joh/when-changed][when-changed]]. On Windows, it can be run from a MINGW shell
+   with
+
+   #+BEGIN_SRC sh :eval never
+   when-changed build/test.js $(which node) build/test.js
+   #+END_SRC
+
+   note that because the resource loaders are async, the process is
+   made to exit using an atom to count the remaining tests.
+   
 * building for node.js
 
   #+BEGIN_SRC sh :eval never
