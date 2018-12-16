@@ -395,7 +395,7 @@
         (if-let [maybe-index (find-match-candidate-index-in-content
                               token (subs content offset))]
           (recur (conj out (+ maybe-index offset))
-                 (+ offset 
+                 (+ offset
                     maybe-index
                     token-length))
           out)))))
@@ -412,22 +412,39 @@
 
 (defn get-all-valid-token-match-arrangements
   ([token-matches-coll]
-   (->> (get-all-valid-token-match-arrangements
-         token-matches-coll [])
-        (flatten)
-        (partition (count token-matches-coll))
-        (filter (fn [token-match-coll]
-                  (loop [tm-remain token-match-coll
-                         tm-prev nil]
-                    (if (empty? tm-remain)
-                      true
-                      (let [tm-cur (first tm-remain)]
-                        (if (< (:index tm-cur)
-                               (+ (:index tm-prev 0)
-                                  (:length tm-prev 0)))
-                          false
-                          (recur (rest tm-remain)
-                                 tm-cur)))))))))
+   (if (< 6 (count token-matches-coll))
+     ;; compexity explodes fast when N goes up, take a shortcut
+     (->> token-matches-coll
+          (reductions (fn [earliest-match match-coll]
+                        ;; select the lowest-index from coll1 as the lower bound
+                        (let [earliest-index (:index earliest-match)]
+                          ;; find the lowest in the incoming collection
+                          ;; that's above our previous lower bound
+                          (->> match-coll
+                               (filter (fn [token-match]
+                                         (< earliest-index (:index token-match))))
+                               (sort-by :index)
+                               (first))))
+                      {:index -1})
+          (rest)
+          (vector))
+     ;; try all 6! combinations
+     (->> (get-all-valid-token-match-arrangements
+           token-matches-coll [])
+          (flatten)
+          (partition (count token-matches-coll))
+          (filter (fn [token-match-coll]
+                    (loop [tm-remain token-match-coll
+                           tm-prev nil]
+                      (if (empty? tm-remain)
+                        true
+                        (let [tm-cur (first tm-remain)]
+                          (if (< (:index tm-cur)
+                                 (+ (:index tm-prev 0)
+                                    (:length tm-prev 0)))
+                            false
+                            (recur (rest tm-remain)
+                                   tm-cur))))))))))
   ([token-matches-coll buf]
    (if (empty? token-matches-coll)
      buf
@@ -438,7 +455,7 @@
                   (conj buf token-match))))))))
 
 (defn find-most-compact-token-matches-in-content
-  "for complex strings this will be >= O(n2)
+  "for complex strings this will be >= O(n^k)
    the only optimization we take here is restricting
    the token search to between the first occurrence
    of the first token, the last occurrence of the

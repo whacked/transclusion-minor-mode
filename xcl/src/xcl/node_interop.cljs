@@ -64,14 +64,33 @@
   [file-path match-string on-complete]
   (let [search-tokens (clojure.string/split match-string #"\s+")
         result (atom nil)]
-   (case (get-file-extension file-path)
-     "epub" (epubi/load-and-get-text
+    (case (get-file-extension file-path)
+      "epub" (epubi/load-and-get-text
+              file-path
+              nil
+              nil
+              (fn on-get-section [{:keys [section chapter text]}]
+                (let [maybe-matches (sc/find-most-compact-token-matches-in-content
+                                     text search-tokens)]
+                  (when (= (count maybe-matches)
+                           (count search-tokens))
+                    (let [first-match (first maybe-matches)
+                          last-match (last maybe-matches)
+                          index-beg (:index first-match)
+                          index-end (+ (:index last-match)
+                                       (:length last-match))]
+                      (swap! result assoc
+                             :section section
+                             :chapter chapter
+                             :excerpt (subs text index-beg index-end))))))
+              (fn on-complete-all-sections [_sections]
+                (on-complete (clj->js @result))))
+     
+      "pdf" (pdfi/process-pdf
              file-path
-             nil
-             nil
-             (fn on-get-section [{:keys [section chapter text]}]
-               (let [maybe-matches (sc/find-successive-tokens-in-content
-                                    text search-tokens)]
+             (fn on-get-page-text [page-num page-text]
+               (let [maybe-matches (sc/find-most-compact-token-matches-in-content
+                                    page-text search-tokens)]
                  (when (= (count maybe-matches)
                           (count search-tokens))
                    (let [first-match (first maybe-matches)
@@ -80,28 +99,9 @@
                          index-end (+ (:index last-match)
                                       (:length last-match))]
                      (swap! result assoc
-                            :section section
-                            :chapter chapter
-                            :excerpt (subs text index-beg index-end))))))
-             (fn on-complete-all-sections [_sections]
+                            :page page-num
+                            :excerpt (subs page-text index-beg index-end))))))
+             (fn on-complete-page-texts [page-texts]
                (on-complete (clj->js @result))))
      
-     "pdf" (pdfi/process-pdf
-            file-path
-            (fn on-get-page-text [page-num page-text]
-              (let [maybe-matches (sc/find-most-compact-token-matches-in-content
-                                   page-text search-tokens)]
-                (when (= (count maybe-matches)
-                         (count search-tokens))
-                  (let [first-match (first maybe-matches)
-                        last-match (last maybe-matches)
-                        index-beg (:index first-match)
-                        index-end (+ (:index last-match)
-                                     (:length last-match))]
-                    (swap! result assoc
-                           :page page-num
-                           :excerpt (subs page-text index-beg index-end))))))
-            (fn on-complete-page-texts [page-texts]
-              (on-complete (clj->js @result))))
-     
-     nil)))
+      nil)))
