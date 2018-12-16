@@ -1,4 +1,5 @@
-(ns xcl.pdfjslib-interop)
+(ns xcl.pdfjslib-interop
+  (:require ["fs" :as fs]))
 
 (def pdfjsLib (atom nil))
 
@@ -45,3 +46,47 @@
              (.then (fn [texts]
                       (callback (.join texts " "))))))))))
 
+(defn process-pdf
+  ([file-path on-get-page-text on-complete-page-texts]
+   (process-pdf
+    file-path on-get-page-text on-complete-page-texts
+    (fn [err]
+      (js/console.error err))))
+  ([file-path
+    on-get-page-text       ;; [page-num text] -> nil
+    on-complete-page-texts ;; [page-texts] -> nil
+    on-error]
+   (if-not (.existsSync fs file-path)
+     (js/console.error
+      (str "ERROR: file [" file-path "] does not exist"))
+     (let [rel-uri (str "file:///" file-path)
+           getDocument (aget @pdfjsLib "getDocument")]
+       (js-invoke
+        (getDocument rel-uri)
+        "then"
+        (fn [pdf]
+          (println "GOT PDF!" rel-uri)
+          (let [count-promises (clj->js [])
+                page-beg 1
+                page-end (aget pdf "numPages")]
+            (doseq [page-num (range page-beg (inc page-end))]
+              (let [page (js-invoke pdf "getPage" page-num)]
+                (.push count-promises
+                       (js-invoke
+                        page
+                        "then"
+                        (fn [p]
+                          (-> p
+                              (js-invoke "getTextContent")
+                              (js-invoke "then"
+                                         (fn [text]
+                                           (on-get-page-text
+                                            page-num
+                                            (-> (aget text "items")
+                                                (.map (fn [s]
+                                                        (aget s "str")))
+                                                (.join " ")))))))))))
+            (-> js/Promise
+                (.all count-promises)
+                (.then on-complete-page-texts)
+                (.catch on-error)))))))))
