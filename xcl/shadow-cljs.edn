@@ -31,5 +31,9 @@
   
   :lib-sample {:target :node-library
                :output-to "build/transclusion.js"
-               :exports {:render xcl.node-interop/render}}
+               :exports
+               {:getExactTextFromPartialStringMatch
+                xcl.node-interop/get-exact-text-from-partial-string-match
+                :render
+                xcl.node-interop/render}}
   }}
