@@ -84,7 +84,7 @@
                             :chapter chapter
                             :excerpt (subs text index-beg index-end))))))
              (fn on-complete-all-sections [_sections]
-               (on-complete @result)))
+               (on-complete (clj->js @result))))
      
      "pdf" (pdfi/process-pdf
             file-path
@@ -102,6 +102,6 @@
                            :page page-num
                            :excerpt (subs page-text index-beg index-end))))))
             (fn on-complete-page-texts [page-texts]
-              (on-complete @result)))
+              (on-complete (clj->js @result))))
      
      nil)))
