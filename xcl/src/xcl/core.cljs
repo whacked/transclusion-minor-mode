@@ -278,61 +278,6 @@
      (fn [matching-resources]
        (content-matcher-async matching-resources)))))
 
-    
-    (js/console.log
-     (str "%c===content resolver===%c"
-          (pr-str content-resolver-method))
-     "color:yellow;background:black;"
-     "color:brown;background:none;")
-    
-    (let [base-spec {:link link
-                     :path path
-                     :protocol protocol
-                     :resource-resolver-method (cond (re-find #"\*" path)
-                                                     :glob-name
-
-                                                     (= protocol :grep)
-                                                     :grep-content
-                                                  
-                                                     :else (get-resource-resolver-method-for-file-by-type
-                                                            path))
-                     :content-resolver-method content-resolver-method
-                     :content-boundary (:bound content-resolver-method)}
-
-          resolved-spec (assoc base-spec
-                               :content-resolver-method-type
-                               (case (:resource-resolver-method base-spec)
-                                 :exact-name-with-subsection
-                                 (if (= :page-number
-                                        (:type content-resolver-method))
-                                   (get-in
-                                    content-resolver-method
-                                    [:sub :type]))
-                                 
-                                 (:type content-resolver-method)))
-          file-name (get-resource-match
-                     candidate-seq-loader
-                     content-loader-async
-                     resolved-spec)]
-      (js/console.log
-       (str "%cSPEC%c"
-            (pr-str resolved-spec))
-       "color:red;font-weight:bold;"
-       "color:blue;")
-      (assoc resolved-spec
-             :resource-address (case (:resource-resolver-method resolved-spec)
-                                 :exact-name-with-subsection
-                                 (merge {:file-name file-name}
-                                        (if (= :page-number
-                                               (:type content-resolver-method))
-                                          (:bound content-resolver-method)))
-                                 
-                                 {:file-name file-name})
-             :match-content (some-> resolved-spec
-                                    (ci/resolve-content
-                                     (content-loader-async file-name))
-                                    (clojure.string/trim))))))
-
 (def transclusion-directive-matcher
   #"\{\{\{transclude\(([^\)]+)\)\}\}\}")
 
@@ -656,3 +601,4 @@
                remain-targets)
          (inc index)
          (conj out match-report))))))
+
