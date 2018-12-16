@@ -99,92 +99,169 @@
                        (conj out [:span (subs text h-end current-index)])
                        out)
                      [:span
-                      {:style {:border "1px solid red"}}
+                      {:style {:background "green"
+                               :color "yellow"}}
                       (subs text h-index h-end)]))))))
 
 (defn render-text-anchoring-test-view! [view-state]
-  [:div
+  (let [use-compact? (r/atom true)]
+    [(fn []
+       [:div
 
-   [:table
-    {:style {:border-collapse "collapse"}}
-    [:style "td { border: 1px solid gray; }"]
-    [:tbody
-     [:tr
-      [:th "content"]
-      [:th "target"]
-      [:th "matches"]]
-     (->> [[" a b c d f g "
-            " b d       f"]
-           [" one two three four five  "
-            "  four six "]]
-          (map (fn [[content target]]
-                 [:tr
-                  [:td content]
-                  [:td target]
-                  [:td
-                   [:pre
-                    (-> (sc/find-successive-tokens-in-content
-                         content
-                         (-> target
-                             (clojure.string/trim)
-                             (clojure.string/split #"\s+")))
-                        (pr-str))]]])))]]
+        [:table
+         {:style {:border-collapse "collapse"
+                  :font-family "Consolas, Inconsolata, Monaco, Ubuntu, Monospace"
+                  :font-size "x-small"}}
+         [:style "td { border: 1px solid gray; }"]
+         [:tbody
+          [:tr
+           [:th]
+           [:th "content"]
+           [:th "target"]
+           [:th "matches"]]
+
+          (->> [[" one two two three three three four four four four "
+                 " two three "]
+                [" van car car car boat car car car boat boat truck boat van van car train "
+                 " car car boat van "]]
+               (map (fn [[content target]]
+                      (let [tokens (-> target
+                                       (clojure.string/trim)
+                                       (clojure.string/split #"\s+"))
+                            all-matches (->> tokens
+                                             (map
+                                              (fn [token]
+                                                (->> (sc/find-all-match-candidate-indexes-in-content
+                                                      token content)
+                                                     (map (fn [index]
+                                                            {:index index
+                                                             :token token
+                                                             :length (count token)}))))))]
+                        (->> all-matches
+                             (sc/get-all-valid-token-match-arrangements)
+                             (map (fn [token-match-arrangement]
+                                    [:tr
+                                     [:td]
+                                     [:td
+                                      (render-highlights-in-text
+                                       content token-match-arrangement)]
+                                     [:td target]
+                                     [:td
+                                      (->
+                                       token-match-arrangement
+                                       (clj->js)
+                                       (js/JSON.stringify nil 2))]]))))))
+               (apply concat))
+
+          [:tr
+           [:th "method"]
+           [:th "content"]
+           [:th "target"]
+           [:th "matches"]]
+     
+          (->> [[:default
+                 " a b c d f g "
+                 " b d       f"]
+                [:default
+                 " one two three four five  "
+                 "  four six "]
+                [:default
+                 " van car car car boat car car car boat boat truck boat van van car train "
+                 " car car boat van "]
+                [:compact
+                 " van car car car boat car car car boat boat truck boat van van car train "
+                 " car car boat van "]]
+               (map (fn [[method content target]]
+                      (let [match-method (case method
+                                           :default sc/find-successive-tokens-in-content
+                                           :compact sc/find-most-compact-token-matches-in-content)
+                            matches (match-method
+                                     content
+                                     (-> target
+                                         (clojure.string/trim)
+                                         (clojure.string/split #"\s+")))]
+                        [:tr
+                         [:td
+                          (name method)]
+                         [:td
+                          (render-highlights-in-text content matches)]
+                         [:td target]
+                         [:td
+                          [:pre
+                           (-> matches
+                               (clj->js)
+                               (js/JSON.stringify nil 2))]]]))))]]
    
-   (let [doc-names ["tiny.org"
-                    "big.org"
-                    "fake.org"
-                    "dummy.org"
-                    "xcl-test-3-a.org"]
-         doc-blobs (map get-static-content doc-names)
-         targets
-         ["  fourth line "
-          " 5th   line "
-          "  fake      file  "
-          "ake"
-          "  you "
-          "you"
-          "  in    the  "
-          " in and CATS"
-          " aye aye"]
+        (let [doc-names ["tiny.org"
+                         "big.org"
+                         "fake.org"
+                         "dummy.org"
+                         "xcl-test-3-a.org"
+                         "100lines"]
+              doc-blobs (->> doc-names
+                             (map (fn [fname]
+                                    (-> fname
+                                        (get-static-content)
+                                        (subs 0 500)))))
+              targets
+              ["  fourth line "
+               " 5th   line "
+               "  fake      file  "
+               "ake"
+               "  you "
+               "you"
+               "  in    the  "
+               " in and CATS"
+               " aye aye"
+               "SOME LINE 30"]
 
-         all-matches (sc/find-corpus-matches-by-tokenization
-                      doc-blobs targets)]
-     [:table
-      {:style {:border-collapse "collapse"}}
-      [:style "td { border: 1px solid gray; }"]
-      [:tbody
-       [:tr
-        [:th "index"]
-        [:th "corpus source"]
-        [:th "hit strings"]
-        [:th "(rendered) content"]
-        [:th "hits"]]
-       (->> (map vector (range (count doc-names)) doc-names doc-blobs)
-            (map (fn [[index fname content]]
-                   (let [matches-for-index
-                         (when-let [maybe-matches (get all-matches index)]
-                           maybe-matches)]
-                     [:tr
-                      [:td index]
-                      [:td fname]
-                      [:td
-                       [:ul
-                        (->> matches-for-index
-                             (map :target)
-                             (map (partial vector :li)))]
-                       ]
-                      [:td
-                       [:pre
-                        (render-highlights-in-text
-                         content
-                         (->> matches-for-index
-                              (map :matches)
-                              (apply concat)))]]
-                      [:td
-                       [:pre
-                        {:style {:font-size "xx-small"}}
-                        (-> (clj->js matches-for-index)
-                            (js/JSON.stringify nil 2))]]]))))]])])
+              all-matches (sc/find-corpus-matches-by-tokenization
+                           doc-blobs targets
+                           :compact? @use-compact?)]
+          [:div
+           [:label
+            [:input
+             {:type "checkbox"
+              :checked @use-compact?
+              :on-change (fn [evt]
+                           (reset! use-compact? (aget evt "target" "checked")))}]
+            "use compact token matcher"]
+           [:table
+            {:style {:border-collapse "collapse"}}
+            [:style "td { border: 1px solid gray; }"]
+            [:tbody
+             [:tr
+              [:th "index"]
+              [:th "corpus source"]
+              [:th "hit strings"]
+              [:th "(rendered) content"]
+              [:th "hits"]]
+             (->> (map vector (range (count doc-names)) doc-names doc-blobs)
+                  (map (fn [[index fname content]]
+                         (let [matches-for-index
+                               (when-let [maybe-matches (get all-matches index)]
+                                 maybe-matches)]
+                           [:tr
+                            [:td index]
+                            [:td fname]
+                            [:td
+                             [:ul
+                              (->> matches-for-index
+                                   (map :target)
+                                   (map (partial vector :li)))]
+                             ]
+                            [:td
+                             [:pre
+                              (render-highlights-in-text
+                               content
+                               (->> matches-for-index
+                                    (map :matches)
+                                    (apply concat)))]]
+                            [:td
+                             [:pre
+                              {:style {:font-size "xx-small"}}
+                              (-> (clj->js matches-for-index)
+                                  (js/JSON.stringify nil 2))]]]))))]]])])]))
 
 (defn render-resource-resolver-test-view! [view-state]
   (let [cases [["exact match"
