@@ -52,7 +52,7 @@
                (filter path-exists?)
                (first))))
 
-(when $calibre-library-directory
+(when-not $calibre-library-directory
   (js/console.error "ERROR: could not detect calibre library path"))
 
 (def $calibre-db-path
@@ -71,7 +71,7 @@
 (def $zotero-db-path
   (path-join $zotero-library-directory "zotero.sqlite"))
 
-(when $zotero-library-directory
+(when-not $zotero-library-directory
   (js/console.error "ERROR: could not detect zotero library path"))
 
 (def $zotero-db (new sqlite3/Database $zotero-db-path))
