@@ -9,7 +9,16 @@
                      set-pdfjslib!]
              :as pdfi]
             ["pdfjs-dist" :as pdfjsLib]
-            [xcl.node-epub-interop :as epubi]))
+            [xcl.node-epub-interop :as epubi]
+            ["fs" :as fs]
+            ["js-yaml" :as yaml]
+            ["jsonpath-plus" :as jsonpath]))
+
+(defn path-exists? [p]
+  (.existsSync fs p))
+
+(defn path-join [& ps]
+  (apply (aget path "join") ps))
 
 (set-pdfjslib! pdfjsLib)
 (ext/register-loader!
