@@ -11,11 +11,13 @@
             ["pdfjs-dist" :as pdfjsLib]
             [xcl.node-epub-interop :as epubi]
             ["fs" :as fs]
+            ["path" :as path]
             ["js-yaml" :as yaml]
             ["jsonpath-plus" :as jsonpath]))
 
 (defn path-exists? [p]
-  (.existsSync fs p))
+  (when p
+    (.existsSync fs p)))
 
 (defn path-join [& ps]
   (apply (aget path "join") ps))
