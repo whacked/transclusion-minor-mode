@@ -7,7 +7,8 @@
             [xcl.external :as ext]
             [xcl.pdfjslib-interop :as pdfjslib]
             [xcl.node-epub-interop :as epubi]
-            [xcl.node-interop :as ni]))
+            [xcl.node-interop :as ni
+             :refer [path-exists? path-join]]))
 
 (def all-tests (atom 0))
 
@@ -15,12 +16,6 @@
   (swap! all-tests dec)
   (when (<= @all-tests 0)
     (js/process.exit)))
-
-(defn path-exists? [p]
-  (.existsSync fs p))
-
-(defn path-join [& ps]
-  (apply (aget path "join") ps))
 
 (def $user-profile-data-candidates [(aget js/process "env" "APPDATA")
                                     (aget js/process "env" "USERPROFILE")
