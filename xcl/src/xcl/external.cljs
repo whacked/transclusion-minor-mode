@@ -1,8 +1,19 @@
 (ns xcl.external
-  (:require))
+  (:require ["js-yaml" :as yaml]
+            ["JSONPath" :as JSONPath]))
 
 (def $ExternalLoaders (atom {}))
 
 (defn register-loader! [extension loader]
   (js/console.warn "REGISTERING LOADER FOR" extension)
   (swap! $ExternalLoaders assoc extension loader))
+
+(defn read-json [json-string]
+  (js/JSON.parse json-string))
+
+(defn read-yaml [yaml-string]
+  (.safeLoad yaml yaml-string))
+
+(defn read-jsonpath-content [js-object jsonpath]
+  (JSONPath (clj->js {:json js-object
+                      :path jsonpath})))
