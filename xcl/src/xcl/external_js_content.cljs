@@ -51,7 +51,16 @@
                                  num-pages)
                     text-buffer (atom [])
                     ]
-                (aset dom-el "style" "display:none;")
+                (aset dom-el "style"
+                      (->> {:opacity 0.01
+                            :position "absolute"
+                            :left "-9999px"
+                            :top "-9999px"
+                            :width "999px"
+                            :height "999px"}
+                           (map (fn [[k v]]
+                                  (str (name k) ":" v ";")))
+                           (apply str)))
                 (js/document.body.appendChild dom-el)
                 (let [rendition (.renderTo
                                  book dom-el
@@ -78,5 +87,8 @@
                                               (interpose "\n")
                                               (apply str))]
                                      (swap! text-buffer conj text-content))
-                                   (load-pages! (rest remain))))))))]
+                                   (load-pages! (rest remain))))
+                                (.catch
+                                 (fn [err]
+                                   (js/console.error err)))))))]
                   (load-pages! (range (dec page-beg) page-end)))))))))))
