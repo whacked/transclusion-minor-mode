@@ -8,6 +8,9 @@
             [xcl.external-js-content :as ext-js]
             [xcl.external :as ext]))
 
+(swap! sc/$known-protocols
+       conj :fakeout)
+
 (defn get-static-content
   [search-path]
   (corpus/file-cache search-path))
@@ -268,10 +271,16 @@
                 "LICENSE" "LICENSE"]
                ["exact match"
                 "file:tiny.org" "tiny.org"]
+               ["exact match"
+                "file:test-note-file.json" "test-note-file.json"]
+               ["exact macth"
+                "grep:ZZ+you" "dummy.org"]
                ["glob file name"
                 "file:d*y.org" "dummy.org"]
                ["fuzzy find file by content +"
-                "grep:ZZ+you" "dummy.org"]]]
+                "grep:ZZ+you" "dummy.org"]
+               ["fake protocol"
+                "fakeout:dummy.org" "dummy.org"]]]
     (->> cases
          (map (fn [[desc link expected-name]]
                 (let [received-name (r/atom nil)]
