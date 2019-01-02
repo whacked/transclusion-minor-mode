@@ -8,20 +8,11 @@
 ;; [ ] anchor text deriver
 ;; [ ] anchor text resolver
 
-(def known-protocols
-  #{:file
-    :grep
-    :xcl})
-
-(def protocol-matcher
-  (-> (str
-       "^\\s*(?:("
-       (->> known-protocols
-            (map name)
-            (interpose "|")
-            (apply str))
-       "):)?(.+)\\s*$")
-      (re-pattern)))
+(def $known-protocols
+  (atom
+   #{:file
+     :grep
+     :xcl}))
 
 (def link-matcher
   (-> (str
@@ -169,7 +160,17 @@
     :exact-name))
 
 (defn parse-link [link]
-  (let [[maybe-protocol maybe-remainder]
+  (let [protocol-matcher
+        (-> (str
+             "^\\s*(?:("
+             (->> @$known-protocols
+                  (map name)
+                  (interpose "|")
+                  (apply str))
+             "):)?(.+)\\s*$")
+            (re-pattern))
+        
+        [maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
         
         protocol (keyword (or maybe-protocol "file"))
