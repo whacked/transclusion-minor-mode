@@ -152,6 +152,10 @@
     (make-named-matcher #"section=(\S+)"
                         [:query-string]
                         [web-query-to-string])]
+   [:jsonpath
+    (make-named-matcher #"jsonpath=(.+)$"
+                        [:jsonpath]
+                        [identity])]
    ])
 
 (defn get-resource-resolver-method-for-file-by-type [file-path]

@@ -50,6 +50,8 @@
    "xcl-test-self-recursion.org" "I include myself:\n{{{transclude(xcl:xcl-test-self-recursion.org)}}}"
    "xcl-test-infinite-1.org" "Hi from 1. I include infinite 2:\n{{{transclude(xcl:xcl-test-infinite-2.org)}}}"
    "xcl-test-infinite-2.org" "Hi from 2. I include infinite 1:\n{{{transclude(xcl:xcl-test-infinite-1.org)}}}"
+   "test-note-file.json" (loader/slurp-file "xcl/public/test-note-file.json")
+   "test-highlight-file.yml" (loader/slurp-file "xcl/public/test-highlight-file.yml")
    })
 
 (defn list-files [_fake-directory]

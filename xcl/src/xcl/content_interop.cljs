@@ -286,12 +286,22 @@
           (concat out)
           (vec)))))
 
-(defn get-maybe-page-number-bound
-  [resource-address]
+(defn get-matching-resolver-bound
+  [resource-address bound-type]
   (some->> resource-address
            (:content-resolvers)
            (filter (fn [resolver]
                      (= (:type resolver)
-                        :page-number)))
+                        bound-type)))
            (first)
            (:bound)))
+
+(defn get-maybe-page-number-bound
+  [resource-address]
+  (get-matching-resolver-bound
+   resource-address :page-number))
+
+(defn get-maybe-jsonpath-bound
+  [resource-address]
+  (get-matching-resolver-bound
+   resource-address :jsonpath))

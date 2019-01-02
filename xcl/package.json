@@ -1,7 +1,9 @@
 {
   "dependencies": {
+    "JSONPath": "^0.11.2",
     "create-react-class": "^15.6.3",
     "epub": "^1.1.0",
+    "js-yaml": "^3.12.0",
     "jsdom": "^13.0.0",
     "pdfjs-dist": "^2.0.943",
     "react": "^16.6.3",

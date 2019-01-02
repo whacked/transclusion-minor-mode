@@ -1,0 +1,33 @@
+ignoreMe: dummy entry
+highlights:
+  - highlightColor: Yellow
+    highlightText: hello world
+    noteText: ''
+    pageNumber: 123
+  - highlightColor: Yellow
+    highlightText: 'cool stuff'
+    noteText: ''
+    pageNumber: 456
+  - highlightColor: Yellow
+    highlightText: >-
+      yaml indented text block
+      that spans 2 lines
+    noteText: ''
+    pageNumber: 789
+  - highlightColor: Blue
+    highlightText: >-
+      lorem ipsum sit dolor amet
+      that starts at pageNumber 1011
+      using kindle's notation
+    noteText: ''
+    pageNumber: 1011
+  - highlightColor: Yellow
+    highlightText: >-
+      This entry has no interesting highlight text
+    noteText: 'This entry has some interesting note text'
+    pageNumber: 1213
+  - highlightColor: Yellow
+    highlightText: a normal entry with no noteText key
+    pageNumber: 1415
+title: >-
+  alice's wonderland: a fake book
