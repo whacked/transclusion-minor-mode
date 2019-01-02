@@ -15,6 +15,37 @@
   [search-path]
   (corpus/file-cache search-path))
 
+
+;; <json, yaml loaders>
+(defn make-json-like-handler
+  [deserializer]
+  (fn [resource-address callback]
+    (let [file-name (:resource-resolver-path resource-address)]
+      (if-not file-name
+        (js/alert (str "NO SUCH FILE: " file-name))
+        (if-let [maybe-jsonpath-bound
+                 (:jsonpath
+                  (ci/get-maybe-jsonpath-bound resource-address))]
+          (some-> (get-static-content file-name)
+                  (deserializer)
+                  (ext/read-jsonpath-content
+                   maybe-jsonpath-bound)
+                  (first)
+                  (callback))
+          (callback (get-static-content file-name)))))))
+
+(ext/register-loader!
+ "json"
+ (make-json-like-handler ext/read-json))
+
+(def yaml-loader
+  (make-json-like-handler ext/read-yaml))
+
+(ext/register-loader! "yml" yaml-loader)
+(ext/register-loader! "yaml" yaml-loader)
+;; </json, yaml loaders>
+
+
 (defn render-map [m]
   {:pre [(map? m)]}
   (->> m
@@ -37,7 +68,7 @@
    ;; candidate-seq-loader-async
    (fn [resource-name-matcher
         callback]
-
+     
      (if (#{"pdf" "epub"}
           (get-file-extension resource-name-matcher))
        (do
@@ -77,11 +108,14 @@
     (if-let [external-loader (@ext/$ExternalLoaders extension)]
       (external-loader
        resource-spec on-content)
-      (js/setTimeout
-       (fn []
-         (on-content
-          (corpus/file-cache path)))
-       (* 1000 (Math/random))))))
+      (do
+        (js/console.warn
+         "using fallback loader (corpus cache exact match)...")
+        (js/setTimeout
+         (fn []
+           (on-content
+            (corpus/file-cache path)))
+         (* 1000 (Math/random)))))))
 
 (defn render-highlights-in-text [text highlights]
   (loop [remain (reverse highlights)
@@ -462,6 +496,23 @@
           {:type :token-bound
            :bound {:token-beg "Monkey observes that"
                    :token-end "so TraceMonkey attempts"}}]]
+
+        ["grab text from json"
+         "xcl:test-note-file.json?jsonpath=$[6].content"
+         "floating note"
+         "test-note-file.json" :exact-name
+         nil
+         [{:type :jsonpath
+           :bound {:jsonpath "$[6].content"}}]]
+
+        ["grab text from yml"
+         "xcl:test-highlight-file.yml?jsonpath=$.highlights[2].highlightText"
+         "yaml indented text block that spans 2 lines"
+         "test-highlight-file.yml" :exact-name
+         nil
+         [{:type :jsonpath
+           :bound {:jsonpath "$.highlights[2].highlightText"}}]]
+        
         ]
        (map (fn [[desc
                   link
