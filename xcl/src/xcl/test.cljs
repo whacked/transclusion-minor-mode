@@ -2,6 +2,8 @@
   (:require ["sqlite3" :as sqlite3]
             ["yesql" :as yesql]
             [xcl.core :as sc]
+            [xcl.node-common :refer
+             [path-join]]
             [xcl.external :as ext]
             [xcl.calibre-interop :as calibre]
             [xcl.zotero-interop :as zotero]))
