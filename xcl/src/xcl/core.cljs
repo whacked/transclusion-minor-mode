@@ -14,6 +14,10 @@
      :grep
      :xcl}))
 
+(def $known-resource-resolver-mapping
+  (atom
+   {:grep :grep-content}))
+
 (def link-matcher
   (-> (str
        "([^:?]+)"
@@ -211,8 +215,10 @@
      :resource-resolver-method (cond (re-find #"\*" path)
                                      :glob-name
 
-                                     (= protocol :grep)
-                                     :grep-content
+                                     (get
+                                      @$known-resource-resolver-mapping
+                                      protocol)
+                                     (@$known-resource-resolver-mapping protocol)
                                      
                                      :else :exact-name)
      :content-resolvers (or maybe-resolvers [{:type :whole-file}])}))
