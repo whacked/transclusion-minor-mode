@@ -13,6 +13,7 @@
                   (.replace "@" "@@"))))
       (.join "@n")
       (clojure.string/replace #"-@n" "-")
+      (clojure.string/replace #"@n" "\n")
       (clojure.string/replace #"@@" "@")))
 
 (defn pdfjslib-load-text
