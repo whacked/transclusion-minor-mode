@@ -13,15 +13,15 @@
             ["fs" :as fs]
             ["path" :as path]
             ["js-yaml" :as yaml]
-            ["jsonpath-plus" :as jsonpath]))
+            ["JSONPath" :as JSONPath]
+            [xcl.node-common :refer
+             [path-exists? path-join]]
+            [xcl.calibre-interop :as calibre]
+            [xcl.zotero-interop :as zotero]))
 
-(defn path-exists? [p]
-  (when p
-    (.existsSync fs p)))
-
-(defn path-join [& ps]
-  (apply (aget path "join") ps))
-
+;;;;;;;;;;;;;;;
+;; epub, pdf ;;
+;;;;;;;;;;;;;;;
 (set-pdfjslib! pdfjsLib)
 (ext/register-loader!
  "pdf"
@@ -116,3 +116,47 @@
                (on-complete (clj->js @result))))
      
       nil)))
+
+
+(def yaml-loader
+  (fn [resource-address callback]
+    (let [file-name (:resource-resolver-path resource-address)]
+      (if-not file-name
+        (js/console.warn (str "NO SUCH FILE: " file-name))
+        (let [source (.readFileSync fs file-name "utf-8")
+              parsed (.safeLoad yaml source)]
+          (callback parsed))))))
+
+;;;;;;;;;;
+;; yaml ;;
+;;;;;;;;;;
+(ext/register-loader! "yml" yaml-loader)
+(ext/register-loader! "yaml" yaml-loader)
+
+;;;;;;;;;;
+;; json ;;
+;;;;;;;;;;
+(ext/register-loader!
+ "json"
+ (fn [resource-address callback]
+   (let [file-name (:resource-resolver-path resource-address)]
+     (if-not file-name
+       (js/console.warn (str "NO SUCH FILE: " file-name))
+       (let [source (.readFileSync fs file-name "utf-8")
+             parsed (.parse js/JSON source)]
+         (callback parsed))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;
+;; jsonpath resolver ;;
+;;;;;;;;;;;;;;;;;;;;;;;
+(swap! ci/$resolver
+       assoc :jsonpath
+       ;; NOTE: relying on yaml to parse json AND yaml
+       (fn [bound-spec content]
+         (let [jsonpath (get-in bound-spec
+                                [:bound :jsonpath])]
+           (some-> content
+                   (ext/read-yaml)
+                   (ext/read-jsonpath-content jsonpath)
+                   (first)))))
+
