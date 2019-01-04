@@ -3,6 +3,7 @@
             [xcl.node-common :refer
              [path-exists? path-join]]
             [xcl.core :as sc]
+            [xcl.content-interop :as ci]
             [xcl.sqlite :as sqlite]
             [xcl.external :as ext]
             [xcl.pdfjslib-interop :as pdfjslib]))
@@ -33,7 +34,11 @@
      (clojure.string/replace attachment-path #"^storage:" ""))))
 
 (defn load-pdf
-  [pdf-search-string target-string on-found-text & [on-error]]
+  [pdf-search-string
+   target-string-or-spec
+   on-found-text
+   & [on-error]]
+  
   (let [zotero-query (sqlite/filename-glob-to-query pdf-search-string)
         
         pdf-loader (@ext/$ExternalLoaders "pdf")
@@ -49,20 +54,34 @@
                                  (some->> pagetexts
                                           (filter
                                            (fn [{:keys [page text]}]
-                                             (let [tokens (clojure.string/split target-string #"\s+")
-                                                   maybe-matches
-                                                   (sc/find-successive-tokens-in-content
-                                                    text tokens)]
-                                               (when (= (count maybe-matches)
-                                                        (count tokens))
-                                                 (let [match-text
-                                                       (subs
-                                                        text
-                                                        (:index (first maybe-matches))
-                                                        (+ (:index (last maybe-matches))
-                                                           (:length (last maybe-matches))))]
-                                                   (on-found-text page match-text))
-                                                 page))))
+                                             (if (string? target-string-or-spec)
+                                               ;; find tokens directly
+                                               (let [tokens (clojure.string/split
+                                                             target-string-or-spec #"\s+")
+                                                     maybe-matches
+                                                     (sc/find-successive-tokens-in-content
+                                                      text tokens)]
+                                                 (when (= (count maybe-matches)
+                                                          (count tokens))
+                                                   (let [match-text
+                                                         (subs
+                                                          text
+                                                          (:index (first maybe-matches))
+                                                          (+ (:index (last maybe-matches))
+                                                             (:length (last maybe-matches))))]
+                                                     (on-found-text page match-text))
+                                                   page))
+
+                                               ;; use specification based resolution
+                                               (when-let [resolved-text (ci/resolve-content
+                                                                         target-string-or-spec
+                                                                         text)]
+                                                 (js/console.info
+                                                  (str "[zotero RANGE TEST OK]\n"
+                                                       "    page: " page "\n"
+                                                       "    "
+                                                       (pr-str target-string-or-spec)))
+                                                 (on-found-text page resolved-text)))))
                                           (first)
                                           (:page))]
                              _page-number-with-string))
