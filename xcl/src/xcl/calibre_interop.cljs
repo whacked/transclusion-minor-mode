@@ -2,6 +2,7 @@
   (:require ["sqlite3" :as sqlite3]
             ["fs" :as fs]
             [xcl.core :as sc]
+            [xcl.content-interop :as ci]
             [xcl.sqlite :as sqlite]
             [xcl.node-epub-interop :as epubi]
             [xcl.node-common :refer
@@ -58,7 +59,10 @@
         (clojure.string/lower-case book-format))))
 
 (defn load-epub
-  [epub-search-string target-string on-found-text & [on-error]]
+  [epub-search-string
+   target-string-or-spec
+   on-found-text
+   & [on-error]]
   (let [calibre-query (sqlite/filename-glob-to-query epub-search-string)
         on-found-file (fn [file-path]
                         (epubi/load-and-get-text
@@ -66,24 +70,36 @@
                          nil
                          nil
                          (fn [{:keys [chapter section text]}]
-                           (let [tokens (clojure.string/split target-string #"\s+")
-                                 maybe-matches
-                                 (sc/find-successive-tokens-in-content
-                                  text tokens)]
-                             (when (= (count maybe-matches)
-                                      (count tokens))
-                               (js/console.info
-                                (str "[calibre test OK]\n"
-                                     "    section: " section "\n"
-                                     "    chapter: " chapter "\n"
-                                     ;; expanded full match
-                                     "    "
-                                     (subs
-                                      text
-                                      (:index (first maybe-matches))
-                                      (+ (:index (last maybe-matches))
-                                         (:length (last maybe-matches)))))))))
-                         on-found-text))]
+                           (when-let [matched-text
+                                      (if (string? target-string-or-spec)
+                                        ;; find tokens directly
+                                        (let [tokens (clojure.string/split
+                                                      target-string-or-spec
+                                                      #"\s+")
+                                              maybe-matches
+                                              (sc/find-successive-tokens-in-content
+                                               text tokens)]
+                                          (when (= (count maybe-matches)
+                                                   (count tokens))
+                                            (subs
+                                             text
+                                             (:index (first maybe-matches))
+                                             (+ (:index (last maybe-matches))
+                                                (:length (last maybe-matches))))))
+                             
+                                        ;; use specification based resolution
+                                        (ci/resolve-content
+                                         target-string-or-spec text))]
+                             
+                             (js/console.info
+                              (str "[calibre test OK]\n"
+                                   "    section: " section "\n"
+                                   "    chapter: " chapter "\n"
+                                   ;; expanded full match
+                                   "    "
+                                   matched-text))
+                             (on-found-text matched-text)))
+                         nil))]
     (-> $calibre-db
         (.all
          (aget sqlite/$sql "calibreBuildDefaultQuery")
