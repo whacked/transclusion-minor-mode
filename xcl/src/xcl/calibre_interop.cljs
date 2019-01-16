@@ -8,9 +8,13 @@
             [xcl.node-common :refer
              [path-exists? path-join]]))
 
-(def $user-profile-data-candidates [(aget js/process "env" "APPDATA")
-                                    (aget js/process "env" "USERPROFILE")
-                                    (aget js/process "env" "HOME")])
+(def $user-profile-data-candidates
+  (let [process-user (aget js/process "env" "USER")]
+   [(aget js/process "env" "APPDATA")
+    (aget js/process "env" "USERPROFILE")
+    (aget js/process "env" "HOME")
+    (path-join "/home" process-user)
+    (path-join "/Users" process-user)]))
 
 (def $calibre-library-directory
   (or (if-let [global-py (some->> $user-profile-data-candidates
