@@ -9,12 +9,21 @@
             [xcl.pdfjslib-interop :as pdfjslib]))
 
 (def $zotero-library-directory
-  (let [maybe-zotero-dir
-        (if-let [windows-user-profile (aget js/process "env" "USERPROFILE")]
-          (path-join windows-user-profile "Zotero")
-          (path-join (aget js/process "env" "HOME") "Zotero"))]
-    (when (path-exists? maybe-zotero-dir)
-      maybe-zotero-dir)))
+  (let [process-user (aget js/process "env" "USER")]
+   (loop [remain
+          [(aget js/process "env" "USERPROFILE") ;; windows
+           (aget js/process "env" "HOME")
+           (path-join "/home" process-user)
+           (path-join "/Users" process-user)]
+          maybe-zotero-dir nil]
+     (if (or (empty? remain)
+             (and maybe-zotero-dir
+                  (path-exists? maybe-zotero-dir)))
+       maybe-zotero-dir
+       (recur
+        (rest remain)
+        (when-let [candidate (first remain)]
+          (path-join candidate "Zotero")))))))
 
 (def $zotero-db-path
   (path-join $zotero-library-directory "zotero.sqlite"))
