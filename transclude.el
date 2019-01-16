@@ -1,4 +1,14 @@
+;; Author: whacked
+;; Version: 0.0.1
+;; Package-Requires: ((ov "20150312.528") (json-rpc "20180104.1528"))
+;; Keywords: transclusion
+;; URL: https://github.com/whacked/transclusion-minor-mode
 (require 'subr-x)
+(require 'thingatpt)
+(require 'cl)
+(require 'ov)
+(require 'json-rpc)
+
 
 ;; ISSUES & LIMITATIONS
 ;; - modifying the overlay sets (buffer-modified-p) of the master
