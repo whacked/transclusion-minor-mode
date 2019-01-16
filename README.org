@@ -67,6 +67,25 @@ made primarily to work with org-mode files
 
    see [[file:transcluding-org-elements.org]]
    
+* development setup
+
+  assuming you have the [[https://nixos.org/nix/][nix package manager]], clone this repository and
+  run =nix-shell=.
+
+** emacs
+
+   from the =nix-shell=, running =emacs= should give you a
+   development-ready emacs instance
+
+** webserver
+
+   #+BEGIN_SRC sh :eval never
+   nix-shell
+   cd xcl
+   npm install
+   node build/webserver.js
+   #+END_SRC
+   
 * using org-mode MACRO syntax instead of INCLUDE
 
   with [[http://orgmode.org/manual/Macro-replacement.html][org macros]] this seems to be a better option.
