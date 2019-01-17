@@ -36,4 +36,8 @@
                 xcl.node-interop/get-exact-text-from-partial-string-match
                 :render
                 xcl.node-interop/render}}
+
+  :node-webserver {:target :node-script
+                   :output-to "build/webserver.js"
+                   :main xcl.node-webserver/-main}
   }}
