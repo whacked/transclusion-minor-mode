@@ -160,3 +160,9 @@
                    (ext/read-jsonpath-content jsonpath)
                    (first)))))
 
+;;;;;;;;;;;;;;;;;;;;;
+;; calibre, zotero ;;
+;;;;;;;;;;;;;;;;;;;;;
+(swap! sc/$known-protocols
+       conj :calibre :zotero)
+
