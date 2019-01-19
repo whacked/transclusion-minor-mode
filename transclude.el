@@ -469,23 +469,24 @@
 (defun macro-expression-at-point ()
   (interactive)
   (save-excursion
-    (let ((char-at-point (string (char-after (point)))))
-      (cond ((string= char-at-point "{")
-             (forward-char 2))
-            ((string= char-at-point "}")
-             (backward-char 2)))
-      (let ((maybe-start-match (search-backward "{{{" (line-beginning-position) t)))
-        (if (not maybe-start-match)
-            (message "nothing found")
-          (let ((maybe-end-match (search-forward "}}}" (line-end-position) t)))
-            (if (not maybe-end-match)
-                (message "nothing found")
-              (let ((macro-string
-                     (string-trim
-                      (buffer-substring-no-properties
-                       (+ maybe-start-match 3)
-                       (- maybe-end-match 3)))))
-                macro-string))))))))
+    (when (< (point) (1+ (buffer-size)))
+      (let ((char-at-point (string (char-after (point)))))
+	(cond ((string= char-at-point "{")
+               (forward-char 3))
+              ((string= char-at-point "}")
+               (backward-char 2)))
+	(let ((maybe-start-match (search-backward "{{{" (line-beginning-position) t)))
+          (if (not maybe-start-match)
+              (message "no start match found")
+            (let ((maybe-end-match (search-forward "}}}" (line-end-position) t)))
+              (if (not maybe-end-match)
+                  (message "no end match found")
+		(let ((macro-string
+                       (string-trim
+			(buffer-substring-no-properties
+			 (+ maybe-start-match 3)
+			 (- maybe-end-match 3)))))
+                  macro-string)))))))))
 
 (define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
 (define-key transclude-mode-map (kbd "C-c E") 'freex-toggle-embed)
