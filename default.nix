@@ -33,8 +33,8 @@ stdenv.mkDerivation rec {
             emacs -batch --eval="(progn (package-initialize) (package-refresh-contents) (package-install 'package-lint))"
         fi
 
-        if [ ! -e $HOME/.emacs.d/json-rpc-request.el ]; then
-            git clone https://github.com/whacked/json-rpc-request.el .nix/.emacs.d/json-rpc-request.el
+        if [ ! -e ./ext--json-rpc-request ]; then
+            git submodule init && git submodule update
         fi
     '';
 }
