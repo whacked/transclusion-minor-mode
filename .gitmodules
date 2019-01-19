@@ -1,0 +1,3 @@
+[submodule "ext--json-rpc-request"]
+	path = ext--json-rpc-request
+	url = https://github.com/whacked/json-rpc-request.el
