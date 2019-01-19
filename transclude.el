@@ -465,11 +465,72 @@
          (message "no transclusion directive found"))))))
 
 (defun parse-transclusion-directive (directive)
-  (when (string-match
-         "\s*transclude\s*(\s*\\(\[^:\]+\\)\s*:\s*\\(.+?\\)\s*)\s*$"
-         directive)
-    (list :protocol (match-string 1 directive)
-          :target (match-string 2 directive))))
+  (let* ((re-pre "\s*transclude\s*(\s*"          )
+	 (re-post                      "\s*)\s*$"))
+    (cond ((string-match
+	    (concat re-pre
+		    "\\(\[^:\]+\s*\\)"
+		    re-post)
+            directive)
+           (list :directive (match-string 0 directive)
+		 :protocol "file1"
+		 :target (match-string 1 directive)))
+
+          ((string-match
+	    (concat re-pre
+		    "\\(\[^:\]+\s*::\s*.+?\\)"
+		    re-post)
+            directive)
+           (list :directive (match-string 0 directive)
+		 :protocol "file"
+		 :target (match-string 1 directive)))
+
+          ((string-match
+	    (concat re-pre
+		    "\\(\[^:\]+\\)\s*:\s*\\(.+?\\)"
+		    re-post)
+            directive)
+           (list :directive (match-string 0 directive)
+		 :protocol (match-string 1 directive)
+		 :target (match-string 2 directive))))))
+
+(ert-deftest parse-transclusion-directive-test ()
+  (let ((spec (parse-transclusion-directive
+	       "transclude(LICENSE::2,10)")))
+    (should (string= (plist-get spec :protocol)
+		     "file"))
+    (should (string= (plist-get spec :target)
+		     "LICENSE::2,10")))
+  (let ((spec (parse-transclusion-directive
+	       "transclude(file:transcluding-org-elements.org)")))
+    (should (string= (plist-get spec :protocol)
+		     "file"))
+    (should (string= (plist-get spec :target)
+		     "transcluding-org-elements.org")))
+  (let ((spec (parse-transclusion-directive
+	       "transclude(file:./transcluding-org-elements.org::2-10)")))
+    (should (string= (plist-get spec :protocol)
+		     "file"))
+    (should (string= (plist-get spec :target)
+		     "./transcluding-org-elements.org::2-10")))
+  (let ((spec (parse-transclusion-directive
+	       "transclude(xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts)")))
+    (should (string= (plist-get spec :protocol)
+		     "xcl"))
+    (should (string= (plist-get spec :target)
+		     "./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts")))
+  (let ((spec (parse-transclusion-directive
+	       "transclude(calibre:quick start?s=The real advantage...on your computer.)")))
+    (should (string= (plist-get spec :protocol)
+		     "calibre"))
+    (should (string= (plist-get spec :target)
+		     "quick start?s=The real advantage...on your computer.")))
+  (let ((spec (parse-transclusion-directive
+	       "transclude(dummy:something)")))
+    (should (string= (plist-get spec :protocol)
+		     "dummy"))
+    (should (string= (plist-get spec :target)
+		     "something"))))
 
 (defun xcl-transclude--org-macro-expression-at-point ()
   (interactive)
