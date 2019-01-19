@@ -466,7 +466,7 @@
     (list :protocol (match-string 1 directive)
           :target (match-string 2 directive))))
 
-(defun macro-expression-at-point ()
+(defun xcl-transclude--org-macro-expression-at-point ()
   (interactive)
   (save-excursion
     (when (< (point) (1+ (buffer-size)))
