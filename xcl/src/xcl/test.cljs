@@ -58,7 +58,7 @@
      (signal-test-done!))))
 
 (defn calibre-test []
-  (calibre/load-epub
+  (calibre/load-text-from-epub
    "QuIcK sTaRt*.epub"
    "Calibre display possible matches for entered"
    (fn [text]

@@ -25,7 +25,7 @@
 (def $resource-resolver-loader-mapping
   (atom {:calibre-file
          (fn [spec callback]
-           (calibre/load-epub
+           (calibre/load-text-from-epub
             (str
              "*"
              (:resource-resolver-path spec)
