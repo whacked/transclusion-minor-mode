@@ -42,7 +42,7 @@
 
          :zotero-file
          (fn [spec callback]
-           (zotero/load-pdf
+           (zotero/load-text-from-pdf
             (str
              "*"
              (:resource-resolver-path spec)
