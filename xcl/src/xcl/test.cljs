@@ -35,14 +35,14 @@
     (test-func)))
 
 (defn signal-test-done! []
-  (red
+  (magenta
    (str (count @all-tests) " tests remaining..."))
   (if (<= (count @all-tests) 0)
     (js/process.exit)
     (run-all-tests!)))
 
 (defn zotero-test []
-  (zotero/load-pdf
+  (zotero/load-text-from-pdf
    "Trace-based just-in-time*.pdf"
    "Monkey observes that so TraceMonkey attempts"
    (fn [page text]
