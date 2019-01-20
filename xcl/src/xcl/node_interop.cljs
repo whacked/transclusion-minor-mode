@@ -166,3 +166,14 @@
 (swap! sc/$known-protocols
        conj :calibre :zotero)
 
+;; TODO: need to clarify this; may be redundant
+(swap! sc/$known-resource-resolver-mapping
+       assoc
+       :calibre
+       :calibre-file)
+
+;; TODO: need to clarify this; may be redundant
+(swap! sc/$known-resource-resolver-mapping
+       assoc
+       :zotero
+       :zotero-file)
