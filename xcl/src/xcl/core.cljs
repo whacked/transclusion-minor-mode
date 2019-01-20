@@ -630,3 +630,14 @@
          (inc index)
          (conj out match-report))))))
 
+(defn get-resolved-substring-from-tokens
+  [text-content tokens]
+  (let [maybe-matches (find-successive-tokens-in-content
+                       text-content tokens)]
+    (when (= (count maybe-matches)
+             (count tokens))
+      (subs
+       text-content
+       (:index (first maybe-matches))
+       (+ (:index (last maybe-matches))
+          (:length (last maybe-matches)))))))
