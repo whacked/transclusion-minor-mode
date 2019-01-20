@@ -1,13 +1,6 @@
 (ns xcl.node-epub-interop
-  (:require [xcl.content-interop :as ci
-             :refer [get-all-text]]
-            ["epub" :as EPub]
-            ["jsdom" :as jsdom]))
-
-(def JSDOM (aget jsdom "JSDOM"))
-
-(reset! ci/Node-TEXT_NODE
-        (aget (new JSDOM) "window" "Node" "TEXT_NODE"))
+  (:require [xcl.dom-processing :as domp]
+            ["epub" :as EPub]))
 
 (defn load-and-get-text [file-name
                          maybe-page-beg
@@ -37,26 +30,13 @@
                                (when err
                                  (js/console.error err))
                                
-                               (let [dom (new JSDOM xhtml-string)
-                                     textContent (->> (aget dom
-                                                            "window" "document" "body")
-                                                      (get-all-text)
-                                                      (interpose "\n")
-                                                      (apply str))
+                               (let [textContent (domp/xhtml-string->text
+                                                  xhtml-string)
                                      section-data-out
                                      {:section index
                                       :chapter (aget chapter "id")
                                       :text textContent}]
-                                 ;; grab all text <p> elements
-                                 (comment
-                                   (->> (js-invoke
-                                         (aget dom "window" "document")
-                                         "querySelectorAll" "p")
-                                        (array-seq)
-                                        (map (fn [node]
-                                               (aget node "textContent")))
-                                        (interpose " ")
-                                        (apply str)))
+                                 
                                  (when on-get-section
                                    (on-get-section section-data-out))
                                  
