@@ -41,15 +41,31 @@
     (js/process.exit)
     (run-all-tests!)))
 
-(defn zotero-test []
-  (zotero/load-text-from-pdf
+(defn zotero-test-pdf []
+  (zotero/load-text-from-file
    "Trace-based just-in-time*.pdf"
    "Monkey observes that so TraceMonkey attempts"
    (fn [page text]
-     (green "[zotero test OK]")
+     (green "[zotero test pdf OK]")
      (js/console.info
       (str "    page: " page "\n"
            "    "
+           text
+           "\n\n"))
+     (signal-test-done!))
+   (fn [err]
+     (js/console.error err)
+     (signal-test-done!))))
+
+(defn zotero-test-html []
+  ;; from example.com
+  (zotero/load-text-from-file
+   "*Example Domain*.html"
+   "examples without prior coordination or asking"
+   (fn [text]
+     (green "[zotero test html OK]")
+     (js/console.info
+      (str "    "
            text
            "\n\n"))
      (signal-test-done!))
@@ -188,7 +204,8 @@
        (signal-test-done!))))
 
   (when zotero/$zotero-library-directory
-    (add-node-test! zotero-test))
+    (add-node-test! zotero-test-pdf)
+    (add-node-test! zotero-test-html))
   
   (when calibre/$calibre-library-directory
     (add-node-test! calibre-test))
