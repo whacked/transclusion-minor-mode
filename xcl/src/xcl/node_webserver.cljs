@@ -10,12 +10,15 @@
    ["yesql" :as yesql]
    ["fs" :as fs]
    ["path" :as path]
+   ["child_process" :as child-process]
    [xcl.core :as sc]
    [xcl.content-interop :as ci]
    [xcl.external :as ext]
    [xcl.pdfjslib-interop :as pdfjslib]
    [xcl.node-epub-interop :as epubi]
    [xcl.node-interop :as ni]
+   [xcl.node-common :refer
+    [path-exists?]]
    [xcl.calibre-interop :as calibre]
    [xcl.zotero-interop :as zotero]))
 
@@ -26,10 +29,7 @@
   (atom {:calibre-file
          (fn [spec callback]
            (calibre/load-text-from-epub
-            (str
-             "*"
-             (:resource-resolver-path spec)
-             "*.epub")
+            (str "*" (:resource-resolver-path spec) "*.epub")
             spec
             (fn [text]
               (js/console.log
@@ -42,21 +42,19 @@
 
          :zotero-file
          (fn [spec callback]
-           (zotero/load-text-from-pdf
-            (str
-             "*"
-             (:resource-resolver-path spec)
-             "*.pdf")
+           (zotero/load-text-from-file
+            (str "*" (:resource-resolver-path spec) "*")
             spec
-            (fn [page text]
+            (fn [text & [page]]
               (js/console.log
-               (str "zotero pdf:\n"
-                    "page: " page "\n"
+               (str "zotero loaded:\n"
+                    (when page
+                      (str "page: " page "\n"))
                     (count text)
                     " bytes\n\n"))
-              (->> text
-                   (clojure.string/trim)
-                   (callback nil)))
+              (callback
+               nil
+               (if text (clojure.string/trim text) "")))
             (fn [err]
               (js/console.error err))))
 
@@ -80,44 +78,97 @@
                      (:resource-resolver-method spec))]
     (loader spec callback)))
 
-(let [xcl-file-resolver 
-      (fn [directive callback]
-        ;; directive is e.g.
-        ;; "xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
-        (let [resource-spec (sc/parse-link directive)
-              resolved-resource-path (:resource-resolver-path
-                                      resource-spec)
-              extension (get-file-extension
-                         resolved-resource-path)
-              resolve-content-and-return!
-              (fn [text]
-                (some->> (ci/resolve-content resource-spec text)
-                         (clojure.string/trim)
-                         (callback nil)))]
-          (println "loading for extension " extension
-                   "\n" resource-spec)
-          (if-let [external-loader (@ext/$ExternalLoaders extension)]
-            (external-loader
-             resource-spec
-             resolve-content-and-return!)
+(defn open-file-natively [file-path]
+  (let [open-command (str
+                      (case (aget js/process "platform")
+                        "win64" "open"
+                        "darwin" "open"
+                        "xdg-open")
+                      " "
+                      "\""
+                      file-path
+                      "\"")]
+    (println "INVOKE: " open-command)
+    (js-invoke
+     child-process "exec" open-command)))
 
-            (.readFile fs
-                       resolved-resource-path
-                       "utf-8"
-                       (fn [err text]
-                         (resolve-content-and-return! text))))))
-      
-      resource-resolver-handler
-      (fn [directive callback]
-        (let [resource-spec (sc/parse-link directive)]
-          (load-by-resource-resolver
-           resource-spec
-           callback)))]
-  (def $handler-mapping
-    {:file xcl-file-resolver
-     :xcl xcl-file-resolver
-     :calibre resource-resolver-handler
-     :zotero resource-resolver-handler}))
+(def $handler-mapping
+  {:echo (fn [args callback]
+           (println (js->clj args :keywordize-keys true))
+           (-> args (js->clj) (println))
+           (callback nil args))
+   
+   :get-text (fn [args callback]
+               (let [{:keys [protocol directive]}
+                     (js->clj args :keywordize-keys true)]
+                 ((case protocol
+
+                    ("file" "xcl")
+                    (fn [directive callback]
+                      ;; directive is e.g.
+                      ;; "xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
+                      (let [resource-spec (sc/parse-link directive)
+                            resolved-resource-path (:resource-resolver-path
+                                                    resource-spec)
+                            extension (get-file-extension
+                                       resolved-resource-path)
+                            resolve-content-and-return!
+                            (fn [text]
+                              (some->> (ci/resolve-content resource-spec text)
+                                       (clojure.string/trim)
+                                       (callback nil)))]
+                        (println "loading for extension " extension
+                                 "\n" resource-spec)
+                        (if-let [external-loader (@ext/$ExternalLoaders extension)]
+                          (external-loader
+                           resource-spec
+                           resolve-content-and-return!)
+
+                          (.readFile fs
+                                     resolved-resource-path
+                                     "utf-8"
+                                     (fn [err text]
+                                       (resolve-content-and-return! text))))))
+
+                    ("calibre" "zotero")
+                    (fn [directive callback]
+                      (let [resource-spec (sc/parse-link directive)]
+                        (load-by-resource-resolver
+                         resource-spec
+                         callback))))
+                  
+                  directive callback)))
+   
+   :open (fn [args callback]
+           (let [{:keys [protocol directive]}
+                 (js->clj args :keywordize-keys true)
+                 resource-spec (sc/parse-link directive)
+                 resolved-path (:resource-resolver-path
+                                resource-spec)
+                 complete-request
+                 (fn [file-path]
+                   (->> {:status (or (when (path-exists? file-path)
+                                       (open-file-natively
+                                        file-path)
+                                       "ok")
+                                     "error")}
+                        (clj->js)
+                        (callback nil)))]
+             
+             (case protocol
+               "calibre"
+               (calibre/find-matching-epub
+                (str "*" resolved-path "*.epub")
+                complete-request)
+               
+               "zotero"
+               (zotero/find-matching-file
+                (str "*" resolved-path "*")
+                complete-request)
+               
+               ;; generic
+               (complete-request resolved-path))))
+   })
 
 (defn start-server! []
   (let [app (express)
