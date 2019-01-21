@@ -293,61 +293,6 @@
            (overlay-put ov 'face
                         (cons 'background-color freex-color-base)))))
 
-(defun freex-update-active-overlay-list ()
-  ;; loop through the opened buffer list;
-  ;; for each opened buffer
-  ;; look at the buffer local `freex-active-source-file-list`
-  ;; if it is non-nil and
-  ;; if it contains the filepath of the buffer being saved,
-  ;; refresh the overlays in that buffer
-  ;; (say "保存 1")
-  (let* ((src-buf (current-buffer))
-         (source-filepath (expand-file-name (buffer-file-name src-buf))))
-    (let ((check-buffer-list (buffer-list)))
-      (while check-buffer-list
-        (let ((tgt-buf (car check-buffer-list)))
-          (if (and (buffer-local-value 'freex-active-source-file-list tgt-buf)
-                   (member source-filepath (buffer-local-value 'freex-active-source-file-list tgt-buf)))
-              (progn
-                (message (format "->>> MATCH ->>> %s FROM %s\n"
-                                 (buffer-name tgt-buf)
-                                 source-filepath))
-                (set-buffer tgt-buf)
-                (let ((ov-list (overlays-in 0 (buffer-size)))
-                      target-ov)
-                  (while ov-list
-                    (let ((ov (car ov-list)))
-                      (if (and (overlay-get ov 'is-freex-embed)
-                               (overlay-get ov 'full-filename))
-                          (setq target-ov ov)))
-                    (setq ov-list (cdr ov-list)))
-                  (if target-ov
-                      (let* ((line-start (overlay-get target-ov 'line-start))
-                             (line-end   (overlay-get target-ov 'line-end))
-                             (pos-start (overlay-start target-ov))
-                             (pos-end   (overlay-end target-ov))
-                             (updated-text (progn (set-buffer src-buf)
-                                                  (get-text-between-2-line-index line-start line-end))))
-                        (set-buffer tgt-buf)
-                        ;; wipe the overlay contents and repopulate
-                        (save-excursion
-                          (goto-char pos-start)
-                          ;; don't want to directly run delete-region
-                          ;; because it causes the overlay to evaporate?
-                          ;; or at least becomes hard to track where it
-                          ;; moved when the region becomes length 0
-                          (insert updated-text)
-                          (goto-char (+ pos-start (length updated-text)))
-                          (delete-region (point)
-                                         (+ -1 (point) (- pos-end pos-start)))
-                          (freex-overlay-set-modified-status target-ov nil)))
-                    )))
-            ))
-        (setq check-buffer-list (cdr check-buffer-list))))))
-
-
-(add-hook 'after-save-hook 'freex-update-active-overlay-list)
-
 (defun get-text-between-2-line-index (start-line until-line)
   "until IS included! this is for the human-friendly specification
    by 'lines A to B' or L20~24 etc., thus it is inclusive"
@@ -454,7 +399,6 @@
         )
       ))
   )
-
 
 (defun overlay-mark-as-modified
     (overlay is-post start end &optional replaced-length)
