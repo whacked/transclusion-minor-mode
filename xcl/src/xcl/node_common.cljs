@@ -8,3 +8,6 @@
 
 (defn path-join [& ps]
   (apply (aget path "join") ps))
+
+(defn slurp-file [file-path]
+  (.readFileSync fs file-path "utf-8"))
