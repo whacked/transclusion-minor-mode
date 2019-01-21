@@ -11,3 +11,8 @@ tramp
 # Org-mode
 .org-id-locations
 *_archive
+
+# dev-env
+.nix
+
+.cache
