@@ -193,7 +193,7 @@
 ;; (global-set-key "\C-cE" 'myembed-split-window)
 
 ;; ref http://emacs.stackexchange.com/a/358
-(defvar transclude-mode-map (make-sparse-keymap)
+(defvar xcl-transclude-mode-map (make-sparse-keymap)
   "Keymap while transclude-mode is active.")
 
 ;; ref http://emacs.stackexchange.com/questions/352/how-to-override-major-mode-bindings
@@ -203,7 +203,7 @@
   "A minor mode so that my key settings override annoying major modes."
   nil
   :lighter "transclude-mode"
-  transclude-mode-map)
+  xcl-transclude-mode-map)
 
 ;; Source: http://stackoverflow.com/questions/683425/globally-override-key-binding-in-emacs
 (defadvice load (after give-my-keybindings-priority)
@@ -549,7 +549,7 @@
            nil)
           (t num))))
 
-(define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
+(define-key xcl-transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
 
 (provide 'xcl-transclude)
 ;;; xcl-transclude.el ends here
