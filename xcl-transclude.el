@@ -520,7 +520,6 @@
 ;; Turn off the minor mode in the minibuffer
 (add-hook 'minibuffer-setup-hook 'turn-off-xcl-transclude-mode)
 
-;;;###autoload
 (defun xcl-transclude--get-overlay-at-point ()
   (interactive)
   (let ((ov-list (overlays-at (point)))
