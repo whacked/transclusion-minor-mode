@@ -12,11 +12,12 @@
 
 (require 'subr-x)
 (require 'thingatpt)
-(require 'cl)
+(require 'cl-lib)
 (require 'ov)
 (require 'json-rpc)
 (load (concat
        default-directory
+       ;; git submodule
        "ext--json-rpc-request/json-rpc-request"))
 
 (defun org-macro-expression-at-point ()
