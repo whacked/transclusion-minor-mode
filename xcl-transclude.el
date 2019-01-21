@@ -9,6 +9,11 @@
 ;;; Commentary:
 
 ;; unidirectional transclusion
+;; the main funcion of interest is
+;; xcl-transclude--toggle-overlay()
+;; 
+;; LIMITATIONS
+;; - no logic that handles source file modifications outside of emacs
 
 (require 'subr-x)
 (require 'thingatpt)
@@ -42,6 +47,32 @@
         (or (cdr (assoc 'overlay-color-modified config))
             "gold")))
 
+(setq xcl-transclude--transclusion-directive-regexp "{{{transclude(.+?)}}}")
+
+(setq xcl-transclude--active-source-file-hash
+      (make-hash-table :test 'equal))
+
+(defun xcl-transclude--add-tracked-overlay (source-file-name target-file-name)
+  (let ((current-list (gethash target-file-name
+			       xcl-transclude--active-source-file-hash)))
+    (puthash
+     target-file-name
+     (if current-list
+	 (cons source-file-name current-list)
+       (list source-file-name))
+     xcl-transclude--active-source-file-hash)))
+
+(defun xcl-transclude--remove-tracked-overlay (source-file-name target-file-name)
+  (let* ((current-list (gethash target-file-name
+				xcl-transclude--active-source-file-hash))
+	 (new-list (cl-remove source-file-name
+			      current-list
+			      :test 'equal
+			      :count 1)))
+    (puthash target-file-name new-list
+	     xcl-transclude--active-source-file-hash)
+    new-list))
+
 (defun org-macro-expression-at-point ()
   (interactive)
   (save-excursion
@@ -53,10 +84,12 @@
                (backward-char 2)))
 	(let ((maybe-start-match (search-backward "{{{" (line-beginning-position) t)))
           (if (not maybe-start-match)
-              (message "no start match found")
+              (progn (message "no start match found")
+                     nil)
             (let ((maybe-end-match (search-forward "}}}" (line-end-position) t)))
               (if (not maybe-end-match)
-                  (message "no end match found")
+                  (progn (message "no end match found")
+                         nil)
 		(let ((macro-string
                        (string-trim
 			(buffer-substring-no-properties
@@ -143,54 +176,322 @@
 	(append parsed-expression
 		maybe-transclusion-directive)))))
 
+(when nil
+  ;; unused
+  
+  (defun xcl-transclude--is-all-keys-present? (required-keys plist)
+    (let ((ok? t))
+      (loop for key in required-keys
+	    do (let ()
+		 (when (not
+			(plist-get plist key))
+		   (warn (format
+                          "required key %s not found in spec"
+                          key))
+		   (setq ok? nil))))
+      (when ok?
+	plist)))
 
+  (defun xcl-transclude--validate-resource-spec (spec)
+    (xcl-transclude--is-all-keys-present?
+     (list :directive :content)
+     spec))
 
+  (defun xcl-transclude--spec-base-object (&rest plist-data)
+    (funcall 'xcl-transclude--validate-resource-spec plist-data)))
 
-;; ISSUES & LIMITATIONS
-;; - modifying the overlay sets (buffer-modified-p) of the master
-;;   buffer even if the master buffer was not modified; currently
-;;   just a minor annoyance
-;; - does not have logic that handles source file modifications
-;;   outside of emacs
+(defun xcl-transclude--json-rpc-request (rpc-command spec)
+  (let* ((protocol (plist-get spec :protocol))
+	 (target-path (plist-get spec :target)))
+    (json-rpc-request
+     (json-rpc-connect XCL-TRANSCLUDE--SERVER-HOST XCL-TRANSCLUDE--SERVER-PORT)
+     "/rpc"
+     rpc-command
+     (list :protocol protocol
+	   :directive (concat
+		       protocol ":"
+		       (if (string= protocol "file")
+			   ;; convert relpath to abspath for the server
+			   ;; WARNING: POSIX ONLY
+			   (if (string-prefix-p "/" target-path)
+			       target-path
+			     (concat default-directory
+				     target-path))
+			 ;; other protocols stay as-is
+			 target-path))))))
 
+(defun xcl-transclude--retrieve-content-from-spec (spec)
+  ;; (xcl-transclude--retrieve-content-from-spec
+  ;;  (parse-transclusion-directive
+  ;;   "transclude(...)"))
+  ;; 
+  ;; where ... is e.g.:
+  ;; "xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
+  ;; "xcl:./public/alice.epub?p=2&s=Would you tell me, please...walk long enough"
+  ;; "calibre:quick start?s=The real advantage...on your computer."
+  ;; "zotero:just-in-time?s=Monkey observes...TraceMonkey attempts"
+  ;; 
+  ;; returns plist e.g.
+  ;; (:text "foo bar baz" ...)
+  ;; where ... is the rest of the parsed directive
+  
+  (message "[XCL] retrieving for spec: %s" spec)
+  (xcl-transclude--json-rpc-request "get-text" spec))
 
-;; TODO: give more unified name + cleanup
-;; moved in from old dot
-(defun myembed-split-window ()
-  "prototype embed buffer fn for editing #+INCLUDE files 'in-place'"
-  (interactive)
-  (when (save-excursion
-        (beginning-of-line 1)
-        (looking-at (concat
-                     ;; take regexp from org.el:org-edit-special
-                     "\\(?:#\\+\\(?:setupfile\\|include\\):?[ \t]+\"?\\|[ \t]*<include\\>.*?file=\"\\)\\([^\"\n>]+\\)"
-                     ;; sloppily match :lines ### portion
-                     ".+\\(?::lines\\)[ \t]+\\([0-9]*\\)[-~ ]\\([0-9]*\\)")))
-    (let* ((file-to-visit (org-trim (match-string 1)))
-           (line-to-visit (string-to-number (match-string 2)))
-           (new-window-height (max
-                               (- (string-to-number (match-string 3))
-                                  line-to-visit)
-                               5))
-           (cur-line-num (line-number-at-pos))
-           (top-line-num (save-excursion
-                           (move-to-window-line-top-bottom 0)
-                           (line-number-at-pos)))
-          (cur-window-height (window-height)))
+(defun xcl-transclude--open-file-from-spec (spec)
+  (message "[XCL] opening for spec: %s" spec)
+  (xcl-transclude--json-rpc-request "open" spec))
+
+(defun xcl-transclude--create-overlay!
+    (ov-point-beg parsed-resource-spec)
+  (let ((ov nil)
+        (content (plist-get parsed-resource-spec :text))
+        (modified-p (buffer-modified-p)))
+    (save-excursion
+      (goto-char ov-point-beg)
+      (setq ov (ov-read-only
+                (ov-insert content)))
+      (overlay-put ov 'evaporate t)
       
-      (split-window nil (+ 4 (- cur-line-num top-line-num)))
-      (recenter-top-bottom -1)
-      (other-window 1)
-      (split-window nil new-window-height)
-      (find-file file-to-visit)
-      (other-window 1)
-      (goto-line (+ cur-line-num 1))
-      (recenter-top-bottom 0)
-      (other-window -1)
-      (goto-line line-to-visit)
-      (recenter-top-bottom))))
-;; never actually used this...
-;; (global-set-key "\C-cE" 'myembed-split-window)
+      ;; set the color of the text
+      (overlay-put ov 'face
+                   (cons 'background-color xcl-transclude--overlay-color-base))
+      
+      ;; add the modification hooks (after we have inserted)
+      (overlay-put ov 'modification-hooks
+                   '(xcl-transclude--overlay-mark-as-modified))
+
+      (overlay-put ov 'is-xcl-transclude-overlay t)
+      (overlay-put ov 'directive
+		   (plist-get parsed-resource-spec :directive))
+      
+      ;; set buffer modified to nil if it was not already modified
+      (set-buffer-modified-p modified-p)
+      ;; force overlay to be not modified
+      (xcl-transclude--overlay-set-modified-status ov nil)
+      
+      (ov-read-only
+       ov
+       t ;; insert-in-front
+       t ;; insert-behind
+       )
+
+      (let* ((resource-path (plist-get parsed-resource-spec
+				       :resource-resolver-path))
+	     (transcluded-file-path (file-truename resource-path))
+	     (maybe-file-buffer (get-file-buffer resource-path)))
+	
+	(overlay-put ov 'transcluded-file-path transcluded-file-path)
+	
+	(xcl-transclude--add-tracked-overlay
+	 (buffer-file-name)
+	 transcluded-file-path)
+	
+	(when maybe-file-buffer
+          (xcl-transclude--add-save-hook-to-buffer
+           maybe-file-buffer)))
+      ov)))
+
+(defun xcl-transclude--trigger-update-overlays ()
+  (let* ((transcluded-file-path (buffer-file-name))
+	 (source-buffer-list
+	  (gethash (buffer-file-name)
+		   xcl-transclude--active-source-file-hash)))
+    (dolist (source-buffer-name (delete-dups source-buffer-list))
+      (let ((maybe-source-buffer (get-file-buffer source-buffer-name)))
+	(if maybe-source-buffer
+	    (with-current-buffer
+	      maybe-source-buffer
+	      (dolist (ov-to-update
+		       (reverse
+			(ov-in 'transcluded-file-path transcluded-file-path)))
+		(xcl-transclude--sync-overlay!
+		 ov-to-update)))
+	  ;; source buffer no longer available, remove it
+	  (setq
+	   xcl-transclude--active-source-file-hash
+	   (puthash
+	    (buffer-file-name)
+	    (cl-delete
+	     source-buffer-name
+	     source-buffer-list)
+	    xcl-transclude--active-source-file-hash)))))))
+
+(defun xcl-transclude--close-overlay! (&optional pos)
+  (interactive (list (point)))
+  (let ((ov-list (overlays-at (or pos (point)))))
+    (while ov-list
+      (let ((ov (car ov-list))
+            (current-modified-p (buffer-modified-p)))
+        (if (and ov-list (overlay-get ov 'is-xcl-transclude-overlay))
+            (let ((transcluded-file-path (overlay-get ov 'transcluded-file-path)))
+              (if (or (null (overlay-get ov 'is-modified))
+                      (yes-or-no-p "source file for this overlay was modified. discard changes? "))
+                  (let ((del-start (overlay-start ov))
+                        (del-end (overlay-end ov)))
+		    
+                    (remove-overlays del-start del-end
+				     'transcluded-file-path
+				     transcluded-file-path)
+		    
+		    (xcl-transclude--remove-tracked-overlay
+		     (buffer-file-name)
+		     transcluded-file-path)
+		    
+                    (kill-region del-start del-end)
+                    (set-buffer-modified-p current-modified-p))))))
+      (setq ov-list (cdr ov-list)))))
+
+;;;###autoload
+(defun xcl-transclude--toggle-overlay (&optional xcl-transclude-plist)
+  (interactive)
+  ;; first check are we on an overlay?
+  (let ((maybe-overlay (xcl-transclude--get-overlay-at-point)))
+    (if maybe-overlay
+        (xcl-transclude--close-overlay!)
+      ;; then check if we are followed by an overlay?
+      (let ((maybe-transclusion-directive
+             (transclusion-directive-at-point)))
+	(cond (maybe-transclusion-directive
+               ;; check if directive is followed by an overlay
+               (save-excursion
+                 (goto-char
+                  (+ 1 (plist-get maybe-transclusion-directive :end)))
+                 (xcl-transclude--toggle-overlay maybe-transclusion-directive)))
+              
+              (xcl-transclude-plist
+               (let* ((directive (plist-get
+                                  xcl-transclude-plist
+                                  :directive))
+		      (ret-parsed-spec (xcl-transclude--retrieve-content-from-spec
+                                        xcl-transclude-plist))
+		      (overlay (xcl-transclude--create-overlay! (point) ret-parsed-spec)))
+		 
+		 ;; parsed looks like:
+		 ;; (list :link "file:/path/to/transclusion-minor-mode/LICENSE::2,10"
+		 ;;       :protocol "file"
+		 ;;       :resource-resolver-path "/path/to/transclusion-minor-mode/LICENSE"
+		 ;;       :resource-resolver-method "exact-name"
+		 ;;       :content-resolvers [(:bound (:beg 2 :end 10) :type char-range)]
+		 ;;       :text "U GENERA")
+		 ret-parsed-spec))
+              (t
+               (message "no overlay and no transclusion directive")))))))
+
+(defun xcl-transclude--enable-all-overlays! ()
+  (save-excursion
+    (beginning-of-buffer)
+    (while
+        (re-search-forward
+         xcl-transclude--transclusion-directive-regexp
+         nil t)
+      (xcl-transclude--toggle-overlay))))
+
+(defun xcl-transclude--disable-all-overlays! ()
+  (save-excursion
+    (beginning-of-buffer)
+    (let ((overlays (ov-all)))
+      (dolist (ov overlays)
+        (when (overlay-get ov 'is-xcl-transclude-overlay)
+	  ;; NOTE: this seems to cause the buffer modified flag to change
+          (delete-region (overlay-start ov)
+                         (overlay-end ov))
+          ;; this may be redundant due to 'evaporate
+          (delete-overlay ov))))))
+
+(defun xcl-transclude--sync-overlay! (overlay)
+  (message "[XCL] syncing overlay: %s" overlay)
+  (save-excursion
+    (goto-char (ov-beg overlay))
+    (xcl-transclude--close-overlay!)
+    (search-backward "{{{")
+    (xcl-transclude--toggle-overlay)))
+
+(defun xcl-transclude--sync-overlays! ()
+  (interactive)
+  (dolist (ov-to-update (reverse (ov-in 'is-xcl-transclude-overlay t)))
+    (xcl-transclude--sync-overlay! ov-to-update)))
+
+(defun xcl-transclude--add-save-hook-to-buffer (target-buffer)
+  (let ((maybe-file-buffer
+         (if (eq 'string (type-of target-buffer))
+             (buffer-file-name target-buffer)
+           target-buffer)))
+    (when maybe-file-buffer
+      (message "[XCL] adding hook to: %s" maybe-file-buffer)
+      (with-current-buffer maybe-file-buffer
+        (add-hook
+         'after-save-hook
+         'xcl-transclude--trigger-update-overlays
+         nil
+         t ;; buffer local
+         )))))
+
+(defun xcl-transclude--attempt-visit-transclusion-directive (parsed-directive)
+  (cond ((and parsed-directive
+  	      (string= "file" (plist-get parsed-directive :protocol)))
+	 
+  	 (let ((full-file-name
+                (expand-file-name
+  	         ;; need to post-process potential line number ranges
+  	         ;; for org-open-link-from-string
+  	         (let* ((target (plist-get parsed-directive :target))
+  	 	        (maybe-split (split-string target "::"))
+  	 	        (path (car maybe-split)))
+	           
+  	           (if (= 1 (length maybe-split))
+  	 	       ;; no intra-locator
+  	 	       path
+  	 	     (let ((intra-locator
+  	 	            (cadr maybe-split)))
+  	 	       (cond ((string-prefix-p "*" intra-locator)
+  	 		      ;; e.g. file:my-file.org::*myheading
+  	 		      target)
+
+  	 		     ((string-match
+  	 		       "\\([[:digit:]]\\)+-.+"
+  	 		       intra-locator)
+  	 		      (concat
+  	 		       path "::"
+  	 		       (match-string 1 intra-locator)))
+
+  	 		     ((string-match-p
+  	 		       "[[:digit:]]+"
+  	 		       intra-locator)
+  	 		      (concat path "::" intra-locator))
+			     
+  	 		     (t path))))))))
+           (org-open-link-from-string
+  	    (format "[[%s]]" full-file-name))
+           (xcl-transclude--add-save-hook-to-buffer
+            full-file-name)))
+        
+	(t
+         (xcl-transclude--open-file-from-spec parsed-directive))))
+
+;; override org's org-edit-special()
+(defun xcl-transclude--transclusion-org-edit-special-advice (&optional ARG PRED) 
+  (let ((maybe-overlay (xcl-transclude--get-overlay-at-point))
+	(maybe-transclusion-directive
+         (transclusion-directive-at-point)))
+    
+    (cond (maybe-overlay
+	   (let* ((source-directive
+		   (overlay-get maybe-overlay 'directive))
+		  (parsed-directive
+		   (parse-transclusion-directive
+		    source-directive)))
+	     (xcl-transclude--attempt-visit-transclusion-directive
+	      parsed-directive)
+	     t))
+	  
+	  (maybe-transclusion-directive
+	   (xcl-transclude--attempt-visit-transclusion-directive
+	    maybe-transclusion-directive)
+	   t))))
+
+(advice-add 'org-edit-special :before-until
+	    'xcl-transclude--transclusion-org-edit-special-advice)
 
 ;; ref http://emacs.stackexchange.com/a/358
 (defvar xcl-transclude-mode-map (make-sparse-keymap)
@@ -264,6 +565,7 @@
       (xcl-transclude--overlay-set-modified-status overlay t)
       (set-buffer-modified-p current-modified-p))))
 
+(define-key xcl-transclude-mode-map (kbd "C-c E") 'xcl-transclude--toggle-overlay)
 
 (provide 'xcl-transclude)
 ;;; xcl-transclude.el ends here
