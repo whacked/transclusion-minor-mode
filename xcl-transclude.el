@@ -518,9 +518,6 @@
 
 (define-globalized-minor-mode global-xcl-transclude-mode xcl-transclude-mode turn-on-xcl-transclude-mode)
 
-;; Turn off the minor mode in the minibuffer
-(add-hook 'minibuffer-setup-hook 'turn-off-xcl-transclude-mode)
-
 (defun xcl-transclude--get-overlay-at-point ()
   (interactive)
   (let ((ov-list (overlays-at (point)))
