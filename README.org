@@ -4,6 +4,11 @@ work in progress in progress.
 
 made to work with org-mode files
 
+
+** what it's supposed to do
+
+   [[https://i.imgur.com/Zgsfx79.gif]]
+
 * development setup
 
   assuming you have the [[https://nixos.org/nix/][nix package manager]], clone this repository and
