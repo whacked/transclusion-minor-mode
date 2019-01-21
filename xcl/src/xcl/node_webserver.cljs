@@ -46,6 +46,8 @@
                     " bytes\n\n"))
               (->> text
                    (clojure.string/trim)
+                   (assoc spec :text)
+                   (clj->js)
                    (callback nil)))))
 
          :zotero-file
@@ -62,7 +64,10 @@
                     " bytes\n\n"))
               (callback
                nil
-               (if text (clojure.string/trim text) "")))
+               (->> (if text (clojure.string/trim text) "")
+                    (assoc spec :text)
+                    (clj->js)
+                    (callback nil))))
             (fn [err]
               (js/console.error err))))
 
@@ -79,6 +84,8 @@
                 (fn [text]
                   (some->> (ci/resolve-content spec text)
                            (clojure.string/trim)
+                           (assoc spec :text)
+                           (clj->js)
                            (callback nil)))))))}))
 
 (defn load-by-resource-resolver [spec callback]
@@ -124,6 +131,8 @@
                             (fn [text]
                               (some->> (ci/resolve-content resource-spec text)
                                        (clojure.string/trim)
+                                       (assoc resource-spec :text)
+                                       (clj->js)
                                        (callback nil)))]
                         (println "loading for extension " extension
                                  "\n" resource-spec)
