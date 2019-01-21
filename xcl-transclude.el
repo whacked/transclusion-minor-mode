@@ -521,18 +521,6 @@
 (add-hook 'minibuffer-setup-hook 'turn-off-xcl-transclude-mode)
 
 ;;;###autoload
-(defun turn-on-xcl-transclude-mode ()
-  "Turns on xcl-transclude-mode."
-  (interactive)
-  (xcl-transclude-mode t))
-
-;;;###autoload
-(defun turn-off-xcl-transclude-mode ()
-  "Turns off xcl-transclude-mode."
-  (interactive)
-  (xcl-transclude-mode -1))
-
-;;;###autoload
 (defun xcl-transclude--get-overlay-at-point ()
   (interactive)
   (let ((ov-list (overlays-at (point)))
