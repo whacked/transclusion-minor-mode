@@ -10,7 +10,7 @@
 
 ;; unidirectional transclusion
 ;; the main funcion of interest is
-;; xcl-transclude--toggle-overlay()
+;; xcl-transclude-toggle-overlay()
 ;; 
 ;; LIMITATIONS
 ;; - no logic that handles source file modifications outside of emacs
@@ -343,7 +343,7 @@
       (setq ov-list (cdr ov-list)))))
 
 ;;;###autoload
-(defun xcl-transclude--toggle-overlay (&optional xcl-transclude-plist)
+(defun xcl-transclude-toggle-overlay (&optional xcl-transclude-plist)
   (interactive)
   ;; first check are we on an overlay?
   (let ((maybe-overlay (xcl-transclude--get-overlay-at-point)))
@@ -357,7 +357,7 @@
                (save-excursion
                  (goto-char
                   (+ 1 (plist-get maybe-transclusion-directive :end)))
-                 (xcl-transclude--toggle-overlay maybe-transclusion-directive)))
+                 (xcl-transclude-toggle-overlay maybe-transclusion-directive)))
               
               (xcl-transclude-plist
                (let* ((directive (plist-get
@@ -385,7 +385,7 @@
         (re-search-forward
          xcl-transclude--transclusion-directive-regexp
          nil t)
-      (xcl-transclude--toggle-overlay))))
+      (xcl-transclude-toggle-overlay))))
 
 (defun xcl-transclude--disable-all-overlays! ()
   (save-excursion
@@ -405,7 +405,7 @@
     (goto-char (ov-beg overlay))
     (xcl-transclude--close-overlay!)
     (search-backward "{{{")
-    (xcl-transclude--toggle-overlay)))
+    (xcl-transclude-toggle-overlay)))
 
 (defun xcl-transclude--sync-overlays! ()
   (interactive)
@@ -565,7 +565,7 @@
       (xcl-transclude--overlay-set-modified-status overlay t)
       (set-buffer-modified-p current-modified-p))))
 
-(define-key xcl-transclude-mode-map (kbd "C-c E") 'xcl-transclude--toggle-overlay)
+(define-key xcl-transclude-mode-map (kbd "C-c E") 'xcl-transclude-toggle-overlay)
 
 (provide 'xcl-transclude)
 ;;; xcl-transclude.el ends here
