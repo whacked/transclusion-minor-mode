@@ -1,8 +1,14 @@
+;;; xcl-transclude.el --- transclusion facility using overlays  -*- lexical-binding: t; -*-
+
 ;; Author: whacked
 ;; Version: 0.0.1
 ;; Package-Requires: ((emacs "24.4") (ov "1.0.6") (json-rpc "0.0.1"))
 ;; Keywords: convenience outlines transclusion
 ;; URL: https://github.com/whacked/transclusion-minor-mode
+
+;;; Commentary:
+
+;; unidirectional transclusion
 
 (require 'subr-x)
 (require 'thingatpt)
@@ -569,4 +575,5 @@
 (define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
 (define-key transclude-mode-map (kbd "C-c E") 'freex-toggle-embed)
 
-(provide 'transclude-mode)
+(provide 'xcl-transclude)
+;;; xcl-transclude.el ends here
