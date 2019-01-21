@@ -2,71 +2,8 @@
 
 work in progress in progress.
 
-basically a trimmed down version of [[https://github.com/gregdetre/emacs-freex][emacs-freex mode]]'s embedding mechanism
+made to work with org-mode files
 
-made primarily to work with org-mode files
-
-** what it's supposed to do
-
-[[http://giant.gfycat.com/FlimsyDampIrishsetter.gif]]
-
-** playground
-
-#+INCLUDE: "transclude.el" :lines 1-10
-
-#+INCLUDE: "transclude.el" :lines "1-10"
-
-#+INCLUDE: "transclude.el" :lines "1-"
-
-# check link syntax? [[*also%20see][also see:1-9]]
-
-#+INCLUDE: "random-test.txt" :lines 1-
-
-* also see
-
-** using org dynamic blocks
-
-   http://stackoverflow.com/questions/15328515/iso-transclusion-in-emacs-org-mode
-  
-   http://stackoverflow.com/a/15352203
-
-   #+BEGIN_SRC emacs-lisp :results none
-     (defun org-dblock-write:transclusion (params)
-       (progn
-         (with-temp-buffer
-           (insert-file-contents (plist-get params :filename))
-           (let ((range-start (or (plist-get params :min) (line-number-at-pos (point-min))))
-                 (range-end (or (plist-get params :max) (line-number-at-pos (point-max)))))
-             (copy-region-as-kill (line-beginning-position range-start)
-                                  (line-end-position range-end))))
-         (yank)))
-   #+END_SRC
-  
-   Then to include a line range from a given file, you can create a dynamic block like so:
-  
-   #+BEGIN: transclusion :filename "transclude.el" :min 2 :max 4
-   #+END:
-
-   =C-c C-x C-u= (=org-dblock-update=) will on the =BEGIN/END= block
-   updates that block; =org-update-all-dblocks= does all in the
-   buffer.
-
-   *This is an unsatisfactory solution* because it is actually just
-   unidirectional /quasi-dynamic inclusion/; /quasi/, because the
-   update step has no knowledge of the target /until/ the update is
-   invoked. It is possible to add action hooks to run updates
-   automatically, but that is no different from export-time inclusion,
-   which by nature assumes a unidirectional /flow/ of information. Org
-   already has a number of ways to achieve this, such as a =sh= src
-   block that runs =cat=.
-   
-   Transclusion is different in practice: it is the /actual content,
-   appearing/ at the location of transclusion.
-   
-** John Kitchin's version (requires org-mode 9)
-
-   see [[file:transcluding-org-elements.org]]
-   
 * development setup
 
   assuming you have the [[https://nixos.org/nix/][nix package manager]], clone this repository and
@@ -350,125 +287,72 @@ the whole thing
 
 * transclusion macro syntax interaction in emacs
 
-  this provides the main =open-transclusion-target= interactive
-  function to handle actions at a ={{{tranclude(...)}}}= macro.
+  this relies on running the webserver from [[file:xcl/src/xcl/node_webserver.cljs]]
 
-  it demonstrates interaction with
-  - {{{tranclude(calibre:...)}}} for epubs via https://github.com/whacked/calibre-mode
-  - {{{tranclude(zotero:...)}}} for pdfs via https://github.com/whacked/zotero-query.el
-  - {{{tranclude(xcl:...)}}} for the xcl syntax handled in the [[file:xcl]] project
-    
-  epub and pdf open + render works via the [[https://github.com/whacked/hyperbloviate/][hyperbloviate]] application
-  with the [[https://github.com/whacked/hyperbloviate-reader-plugin][reader plugin]]. executing =open-transclusion-target= on
-  supported directives should load the referenced resource (via first
-  match) into the viewer.
+  see [[file:xcl/README.org]] for details
   
-  #+BEGIN_SRC emacs-lisp :results silent
-    (require 'dash)
-    (require 'cl)
+** playground
 
-    ;; corresponds to jsonRpcServer.Server.JRPC_PORT in
-    ;; hyperbloviate/src/jsonRpcServer.ts
-    (setq hyperbloviate-jsonrpc-server-port 8002)
-    
-    (defun jsonrpc-open! (filepath maybe-search-string)
-      (json-rpc-request
-       (json-rpc-connect
-        "localhost" hyperbloviate-jsonrpc-server-port)
-       "/rpc" (file-name-extension filepath)
-       (append
-        (list :path (concat "file:///" filepath))
-        (if maybe-search-string
-            (list :search maybe-search-string)))))
+   {{{transclude(LICENSE::2,10)}}}
+   
+   {{{transclude(file:transcluding-org-elements.org)}}}
+   
+   {{{transclude(file:./transcluding-org-elements.org::2-10)}}}
+   
+   {{{transclude(file:./transcluding-org-elements.org::20)}}}
+   
+   {{{transclude(xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts)}}}
+   
+   {{{transclude(calibre:quick start?s=The real advantage...on your computer.)}}}
+   
+   {{{transclude(zotero:just-in-time?s=Monkey observes...TraceMonkey attempts)}}}
 
-    (defun calibre-get-epub-filepath (matcher)
-      (let* ((sql-query (calibre-build-default-query
-                         (concat
-                          (calibre-query-by-field
-                           "b.title"
-                           matcher)
-                          " AND d.format = 'EPUB'")
-                         1))
-             (query-result (calibre-query sql-query))
-             (line-list (split-string (calibre-chomp query-result) "\n"))
-             (num-result (length line-list)))
-        (cond ((= 0 num-result)
-               (message "nothing found."))
-              ((= 1 num-result)
-               (let ((res-list (mapcar #'(lambda (line) (calibre-query-to-alist line)) line-list)))
-                 (if (= 1 (length res-list))
-                     (cadr (assoc :file-path (car res-list)))))))))
-      
-    (defun zotero-get-pdf-filepath (matcher)
-      (let ((maybe-results
-             (-filter
-              (lambda (item)
-                (string-match-p
-                 "\\.pdf$"
-                 (plist-get item 'attachmentPath)))
-              (zotero-query-by-tags-and-creators-and-filenames
-               matcher))))
-        (when maybe-results
-          (let ((match-item (first maybe-results)))
-            (zotero--get-attachment-key-path-filepath
-             (plist-get match-item 'attachmentKey)
-             (plist-get match-item 'attachmentPath))))))
-      
-    (defun parse-intermediate-resource-handler (target-path)
-      (when (string-match
-             "\s*\\(calibre\\|zotero+\\)\s*:\s*\\(.+\\)\s*$"
-             target-path)
-        (list :provider (match-string 1 target-path)
-              :query (match-string 2 target-path))))
-      
-    (defun open-transclusion-target ()
-      (interactive)
-      (let ((maybe-transclusion-directive
-             (macro-expression-at-point)))
-        (when maybe-transclusion-directive
-          (let* ((transclusion-spec
-                  (parse-transclusion-directive
-                   maybe-transclusion-directive))
-                 (transclusion-target
-                  (plist-get transclusion-spec :target))
-                 (transclusion-protocol
-                  (plist-get transclusion-spec :protocol))
-                 (maybe-separator-index
-                  (string-match-p
-                   (regexp-quote "?")
-                   transclusion-target))
-                 (transclusion-target-file
-                  (if (not maybe-separator-index)
-                      transclusion-target
-                    (substring transclusion-target
-                               0 maybe-separator-index)))
-                 (transclusion-constrictor
-                  (if (not maybe-separator-index)
-                      nil
-                    (url-parse-query-string
-                     (substring transclusion-target
-                                (1+ maybe-separator-index)))))
-                 (maybe-search-string
-                  (cadr (assoc "s" transclusion-constrictor))))
-            (cond ((or (string= "calibre" transclusion-protocol)
-                       (string= "zotero" transclusion-protocol))
-                   (cond ((string= "calibre" transclusion-protocol)
-                          (let ((filepath (calibre-get-epub-filepath transclusion-target-file)))
-                            (message "opening with jrpc...")
-                            (jsonrpc-open! filepath maybe-search-string)))
-                         ((string= "zotero" transclusion-protocol)
-                          (let ((maybe-filepath (zotero-get-pdf-filepath transclusion-target-file)))
-                            (when maybe-filepath
-                              (message "opening with jrpc...")
-                              (jsonrpc-open! maybe-filepath maybe-search-string))))))
-                  ((string= "xcl" transclusion-protocol)
-                   (let ((transclusion-file-ext
-                          (file-name-extension transclusion-target-file)))
-                     (when (or (string= "pdf" transclusion-file-ext)
-                               (string= "epub" transclusion-file-ext))
-                       (message "opening with jrpc...")
-                       (jsonrpc-open! transclusion-target-file maybe-search-string))))
-                  (t
-                   (message "unhandled: %s" maybe-transclusion-directive)))))))
-  #+END_SRC
+   {{{transclude(xcl:./public/alice.epub?p=2&s=Would you tell me, please...walk long enough)}}}
+
+   {{{transclude(zotero:faulty reward functions?s=We assumed...measure the performance)}}}
+
+* also see
+
+** using org dynamic blocks
+
+   http://stackoverflow.com/questions/15328515/iso-transclusion-in-emacs-org-mode
   
+   http://stackoverflow.com/a/15352203
+
+   #+BEGIN_SRC emacs-lisp :results none
+     (defun org-dblock-write:transclusion (params)
+       (progn
+         (with-temp-buffer
+           (insert-file-contents (plist-get params :filename))
+           (let ((range-start (or (plist-get params :min) (line-number-at-pos (point-min))))
+                 (range-end (or (plist-get params :max) (line-number-at-pos (point-max)))))
+             (copy-region-as-kill (line-beginning-position range-start)
+                                  (line-end-position range-end))))
+         (yank)))
+   #+END_SRC
+  
+   Then to include a line range from a given file, you can create a dynamic block like so:
+  
+   #+BEGIN: transclusion :filename "transclude.el" :min 2 :max 4
+   #+END:
+
+   =C-c C-x C-u= (=org-dblock-update=) will on the =BEGIN/END= block
+   updates that block; =org-update-all-dblocks= does all in the
+   buffer.
+
+   *This is an unsatisfactory solution* because it is actually just
+   unidirectional /quasi-dynamic inclusion/; /quasi/, because the
+   update step has no knowledge of the target /until/ the update is
+   invoked. It is possible to add action hooks to run updates
+   automatically, but that is no different from export-time inclusion,
+   which by nature assumes a unidirectional /flow/ of information. Org
+   already has a number of ways to achieve this, such as a =sh= src
+   block that runs =cat=.
+   
+   Transclusion is different in practice: it is the /actual content,
+   appearing/ at the location of transclusion.
+   
+** John Kitchin's version (requires org-mode 9)
+
+   see [[file:transcluding-org-elements.org]]
+   
