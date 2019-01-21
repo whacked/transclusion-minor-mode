@@ -1,1 +1,6 @@
-{"jsonrpc-port": 23120}
+{
+    "jsonrpc-host": "localhost",
+    "jsonrpc-port": 23120,
+    "overlay-color-base": "papayawhip",
+    "overlay-color-modified": "gold"
+}

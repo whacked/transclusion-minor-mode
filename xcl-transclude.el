@@ -20,6 +20,27 @@
        ;; git submodule
        "ext--json-rpc-request/json-rpc-request"))
 
+(let* ((config-file-path "xcl/config.json")
+       (config (if (file-exists-p config-file-path)
+                   (json-read-file config-file-path)
+                 nil)))
+
+  (setq XCL-TRANSCLUDE--SERVER-HOST
+        (or (cdr (assoc 'jsonrpc-host config))
+            "localhost"))
+  
+  (setq XCL-TRANSCLUDE--SERVER-PORT
+        (or (cdr (assoc 'jsonrpc-port config))
+            23120))
+
+  (setq xcl-transclude--overlay-color-base
+        (or (cdr (assoc 'overlay-color-base config))
+            "papayawhip"))
+  
+  (setq xcl-transclude--overlay-color-modified
+        (or (cdr (assoc 'overlay-color-modified config))
+            "gold")))
+
 (defun org-macro-expression-at-point ()
   (interactive)
   (save-excursion
