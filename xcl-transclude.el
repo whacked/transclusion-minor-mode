@@ -415,7 +415,7 @@
 (defun xcl-transclude--add-save-hook-to-buffer (target-buffer)
   (let ((maybe-file-buffer
          (if (eq 'string (type-of target-buffer))
-             (buffer-file-name target-buffer)
+             (get-file-buffer target-buffer)
            target-buffer)))
     (when maybe-file-buffer
       (message "[XCL] adding hook to: %s" maybe-file-buffer)
@@ -431,40 +431,41 @@
   (cond ((and parsed-directive
               (string= "file" (plist-get parsed-directive :protocol)))
          
-         (let ((full-file-name
-                (expand-file-name
-                 ;; need to post-process potential line number ranges
-                 ;; for org-open-link-from-string
-                 (let* ((target (plist-get parsed-directive :target))
-                        (maybe-split (split-string target "::"))
-                        (path (car maybe-split)))
-                   
-                   (if (= 1 (length maybe-split))
-                       ;; no intra-locator
-                       path
-                     (let ((intra-locator
-                            (cadr maybe-split)))
-                       (cond ((string-prefix-p "*" intra-locator)
-                              ;; e.g. file:my-file.org::*myheading
-                              target)
+         (let* ((target (plist-get parsed-directive :target))
+		(maybe-split (split-string target "::"))
+		(path-only (car maybe-split))
+		(full-file-name
+                 (expand-file-name
+                  ;; need to post-process potential line number ranges
+                  ;; for org-open-link-from-string
+                  (if (= 1 (length maybe-split))
+		      ;; no intra-locator
+		      path-only
+                    (let ((intra-locator
+                           (cadr maybe-split)))
+		      (cond ((string-prefix-p "*" intra-locator)
+                             ;; e.g. file:my-file.org::*myheading
+                             target)
 
-                             ((string-match
-                               "\\([[:digit:]]\\)+-.+"
-                               intra-locator)
-                              (concat
-                               path "::"
-                               (match-string 1 intra-locator)))
+                            ((string-match
+			      "\\([[:digit:]]\\)+-.+"
+			      intra-locator)
+                             (concat
+			      path-only "::"
+			      (match-string 1 intra-locator)))
 
-                             ((string-match-p
-                               "[[:digit:]]+"
-                               intra-locator)
-                              (concat path "::" intra-locator))
-                             
-                             (t path))))))))
+                            ((string-match-p
+			      "[[:digit:]]+"
+			      intra-locator)
+                             (concat path-only "::" intra-locator))
+                            
+                            (t path-only)))))))
            (org-open-link-from-string
             (format "[[%s]]" full-file-name))
+	   (message "TO OPEN: %s"
+		    parsed-directive)
            (xcl-transclude--add-save-hook-to-buffer
-            full-file-name)))
+            path-only)))
         
         (t
          (xcl-transclude--open-file-from-spec parsed-directive))))
