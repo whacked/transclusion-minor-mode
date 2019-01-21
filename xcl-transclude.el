@@ -12,6 +12,7 @@
 
 (require 'subr-x)
 (require 'thingatpt)
+(require 'cl)
 (require 'cl-lib)
 (require 'ov)
 (require 'json-rpc)
