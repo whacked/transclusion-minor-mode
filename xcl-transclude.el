@@ -33,7 +33,9 @@
 			(buffer-substring-no-properties
 			 (+ maybe-start-match 3)
 			 (- maybe-end-match 3)))))
-                  macro-string)))))))))
+                  (list :directive macro-string
+			:beginning maybe-start-match
+			:end maybe-end-match))))))))))
 
 (defun parse-transclusion-directive (directive)
   (let* ((re-pre "\s*transclude\s*(\s*"          )
@@ -43,8 +45,7 @@
 		    "\\(\[^:\]+\s*\\)"
 		    re-post)
             directive)
-           (list :directive (match-string 0 directive)
-		 :protocol "file1"
+           (list :protocol "file1"
 		 :target (match-string 1 directive)))
 
           ((string-match
@@ -52,8 +53,7 @@
 		    "\\(\[^:\]+\s*::\s*.+?\\)"
 		    re-post)
             directive)
-           (list :directive (match-string 0 directive)
-		 :protocol "file"
+           (list :protocol "file"
 		 :target (match-string 1 directive)))
 
           ((string-match
@@ -61,8 +61,7 @@
 		    "\\(\[^:\]+\\)\s*:\s*\\(.+?\\)"
 		    re-post)
             directive)
-           (list :directive (match-string 0 directive)
-		 :protocol (match-string 1 directive)
+           (list :protocol (match-string 1 directive)
 		 :target (match-string 2 directive))))))
 
 (ert-deftest parse-transclusion-directive-test ()
@@ -109,8 +108,12 @@
          (org-macro-expression-at-point)))
     ;; TODO refactor this part to function
     (when maybe-transclusion-directive
-      (parse-transclusion-directive
-       maybe-transclusion-directive))))
+      (let ((parsed-expression
+	     (parse-transclusion-directive
+	      (plist-get maybe-transclusion-directive :directive))))
+	(append parsed-expression
+		maybe-transclusion-directive)))))
+
 
 
 
