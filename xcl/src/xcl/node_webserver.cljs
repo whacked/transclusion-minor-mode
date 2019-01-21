@@ -18,12 +18,20 @@
    [xcl.node-epub-interop :as epubi]
    [xcl.node-interop :as ni]
    [xcl.node-common :refer
-    [path-exists?]]
+    [path-join path-exists? slurp-file]]
    [xcl.calibre-interop :as calibre]
    [xcl.zotero-interop :as zotero]))
 
-
-(def $JSONRPC-PORT 5000)
+(def $JSONRPC-PORT
+  (let [config-file-path (path-join
+                          (js/process.cwd)"config.json")]
+    (or
+     (when (path-exists? config-file-path)
+       (-> config-file-path
+           (slurp-file)
+           (js/JSON.parse)
+           (aget "jsonrpc-port")))
+     23120)))
 
 (def $resource-resolver-loader-mapping
   (atom {:calibre-file
@@ -177,6 +185,10 @@
                                "transports"
                                "server"
                                "middleware")]
+    (js/console.log
+     (str "starting rpc server on port "
+          $JSONRPC-PORT
+          "..."))
     (doto app
       (.use (js-invoke body-parser "json"))
       (.use "/rpc"
@@ -188,8 +200,4 @@
       (.listen $JSONRPC-PORT))))
 
 (defn -main []
-  (js/console.log
-   (str "starting rpc server on port "
-        $JSONRPC-PORT
-        "..."))
   (start-server!))
