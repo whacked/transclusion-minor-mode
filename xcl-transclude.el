@@ -130,16 +130,6 @@
 ;; - does not have logic that handles source file modifications
 ;;   outside of emacs
 
-;; TODO
-;; [X] change switch-to-buffer to set-buffer when possible
-;; [X] update line parsing code to use orgmode functions
-;; [X] prevent opening a transclude overlay when one is already present
-;;     --> rudimentary detection in freex-toggle-embed()
-;; [ ] can we change all while to pop?
-
-
-;; XXX debug
-;; (defun say (what-to-say) (shell-command (format "say %s" what-to-say)))
 
 ;; TODO: give more unified name + cleanup
 ;; moved in from old dot
@@ -536,44 +526,7 @@
            nil)
           (t num))))
 
-(defun freex-toggle-embed ()
-  "prototype embed buffer fn for editing #+INCLUDE files 'in-place'"
-  (interactive)
-  (if (freex-get-overlay-at-point)
-      (freex-close-overlay (point))
-    
-    ;; ref org.el:org-edit-special() for INCLUDE keyword detect
-    ;; ref ox.el:org-export-expand-include-keyword() for INCLUDE arg parse
-    (let ((element (org-element-at-point)))
-      (case (org-element-type element)
-        (keyword
-         (when (string= (org-element-property :key element) "INCLUDE")
-
-           (let* ((value (org-element-property :value element))
-                  (spl (org-split-string value))
-                  (file-to-visit (expand-file-name (org-remove-double-quotes (car spl)))))
-             (string-match
-              ;; this regex is less strict than the ox.el one
-              ;; but would fail on edge case filenames
-              ".+:lines[ \t]+\"?\\([0-9]*\\)[-~ ]\\([0-9]*\\)\"?"
-              value)
-             (let ((line-start (nonzero-or-nil (match-string 1 value)))
-                   (line-end   (nonzero-or-nil (match-string 2 value))))
-               ;; now we have all the transclusion arguments
-               
-               (if (member file-to-visit (buffer-local-value 'freex-active-source-file-list (current-buffer)))
-                   (message "overlay is already activated")
-                 (progn
-                   (forward-line 1)
-                   (freex-create-overlay (point) file-to-visit line-start line-end)))))))
-
-        ;; if you want to parse other directive syntaxes...
-        (paragraph
-         ;; extra parsing for tiddlywiki syntax
-         (message "no transclusion directive found"))))))
-
 (define-key transclude-mode-map (kbd "C-x C-s") 'check-overlay-and-save)
-(define-key transclude-mode-map (kbd "C-c E") 'freex-toggle-embed)
 
 (provide 'xcl-transclude)
 ;;; xcl-transclude.el ends here
