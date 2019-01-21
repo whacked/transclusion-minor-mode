@@ -54,23 +54,23 @@
 
 (defun xcl-transclude--add-tracked-overlay (source-file-name target-file-name)
   (let ((current-list (gethash target-file-name
-			       xcl-transclude--active-source-file-hash)))
+                               xcl-transclude--active-source-file-hash)))
     (puthash
      target-file-name
      (if current-list
-	 (cons source-file-name current-list)
+         (cons source-file-name current-list)
        (list source-file-name))
      xcl-transclude--active-source-file-hash)))
 
 (defun xcl-transclude--remove-tracked-overlay (source-file-name target-file-name)
   (let* ((current-list (gethash target-file-name
-				xcl-transclude--active-source-file-hash))
-	 (new-list (cl-remove source-file-name
-			      current-list
-			      :test 'equal
-			      :count 1)))
+                                xcl-transclude--active-source-file-hash))
+         (new-list (cl-remove source-file-name
+                              current-list
+                              :test 'equal
+                              :count 1)))
     (puthash target-file-name new-list
-	     xcl-transclude--active-source-file-hash)
+             xcl-transclude--active-source-file-hash)
     new-list))
 
 (defun org-macro-expression-at-point ()
@@ -78,11 +78,11 @@
   (save-excursion
     (when (< (point) (1+ (buffer-size)))
       (let ((char-at-point (string (char-after (point)))))
-	(cond ((string= char-at-point "{")
+        (cond ((string= char-at-point "{")
                (forward-char 3))
               ((string= char-at-point "}")
                (backward-char 2)))
-	(let ((maybe-start-match (search-backward "{{{" (line-beginning-position) t)))
+        (let ((maybe-start-match (search-backward "{{{" (line-beginning-position) t)))
           (if (not maybe-start-match)
               (progn (message "no start match found")
                      nil)
@@ -90,79 +90,79 @@
               (if (not maybe-end-match)
                   (progn (message "no end match found")
                          nil)
-		(let ((macro-string
+                (let ((macro-string
                        (string-trim
-			(buffer-substring-no-properties
-			 (+ maybe-start-match 3)
-			 (- maybe-end-match 3)))))
+                        (buffer-substring-no-properties
+                         (+ maybe-start-match 3)
+                         (- maybe-end-match 3)))))
                   (list :directive macro-string
-			:beginning maybe-start-match
-			:end maybe-end-match))))))))))
+                        :beginning maybe-start-match
+                        :end maybe-end-match))))))))))
 
 (defun parse-transclusion-directive (directive)
   (let* ((re-pre "\s*transclude\s*(\s*"          )
-	 (re-post                      "\s*)\s*$"))
+         (re-post                      "\s*)\s*$"))
     (cond ((string-match
-	    (concat re-pre
-		    "\\(\[^:\]+\s*\\)"
-		    re-post)
+            (concat re-pre
+                    "\\(\[^:\]+\s*\\)"
+                    re-post)
             directive)
            (list :protocol "file1"
-		 :target (match-string 1 directive)))
+                 :target (match-string 1 directive)))
 
           ((string-match
-	    (concat re-pre
-		    "\\(\[^:\]+\s*::\s*.+?\\)"
-		    re-post)
+            (concat re-pre
+                    "\\(\[^:\]+\s*::\s*.+?\\)"
+                    re-post)
             directive)
            (list :protocol "file"
-		 :target (match-string 1 directive)))
+                 :target (match-string 1 directive)))
 
           ((string-match
-	    (concat re-pre
-		    "\\(\[^:\]+\\)\s*:\s*\\(.+?\\)"
-		    re-post)
+            (concat re-pre
+                    "\\(\[^:\]+\\)\s*:\s*\\(.+?\\)"
+                    re-post)
             directive)
            (list :protocol (match-string 1 directive)
-		 :target (match-string 2 directive))))))
+                 :target (match-string 2 directive))))))
 
 (ert-deftest parse-transclusion-directive-test ()
   (let ((spec (parse-transclusion-directive
-	       "transclude(LICENSE::2,10)")))
+               "transclude(LICENSE::2,10)")))
     (should (string= (plist-get spec :protocol)
-		     "file"))
+                     "file"))
     (should (string= (plist-get spec :target)
-		     "LICENSE::2,10")))
+                     "LICENSE::2,10")))
   (let ((spec (parse-transclusion-directive
-	       "transclude(file:transcluding-org-elements.org)")))
+               "transclude(file:transcluding-org-elements.org)")))
     (should (string= (plist-get spec :protocol)
-		     "file"))
+                     "file"))
     (should (string= (plist-get spec :target)
-		     "transcluding-org-elements.org")))
+                     "transcluding-org-elements.org")))
   (let ((spec (parse-transclusion-directive
-	       "transclude(file:./transcluding-org-elements.org::2-10)")))
+               "transclude(file:./transcluding-org-elements.org::2-10)")))
     (should (string= (plist-get spec :protocol)
-		     "file"))
+                     "file"))
     (should (string= (plist-get spec :target)
-		     "./transcluding-org-elements.org::2-10")))
+                     "./transcluding-org-elements.org::2-10")))
   (let ((spec (parse-transclusion-directive
-	       "transclude(xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts)")))
+               "transclude(xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts)")))
     (should (string= (plist-get spec :protocol)
-		     "xcl"))
+                     "xcl"))
     (should (string= (plist-get spec :target)
-		     "./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts")))
+                     "./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts")))
   (let ((spec (parse-transclusion-directive
-	       "transclude(calibre:quick start?s=The real advantage...on your computer.)")))
+               "transclude(calibre:quick start?s=The real advantage...on your computer.)")))
     (should (string= (plist-get spec :protocol)
-		     "calibre"))
+                     "calibre"))
     (should (string= (plist-get spec :target)
-		     "quick start?s=The real advantage...on your computer.")))
+                     "quick start?s=The real advantage...on your computer.")))
   (let ((spec (parse-transclusion-directive
-	       "transclude(dummy:something)")))
+               "transclude(dummy:something)")))
     (should (string= (plist-get spec :protocol)
-		     "dummy"))
+                     "dummy"))
     (should (string= (plist-get spec :target)
-		     "something"))))
+                     "something"))))
 
 (defun transclusion-directive-at-point ()
   (interactive)
@@ -171,10 +171,10 @@
     ;; TODO refactor this part to function
     (when maybe-transclusion-directive
       (let ((parsed-expression
-	     (parse-transclusion-directive
-	      (plist-get maybe-transclusion-directive :directive))))
-	(append parsed-expression
-		maybe-transclusion-directive)))))
+             (parse-transclusion-directive
+              (plist-get maybe-transclusion-directive :directive))))
+        (append parsed-expression
+                maybe-transclusion-directive)))))
 
 (when nil
   ;; unused
@@ -182,15 +182,15 @@
   (defun xcl-transclude--is-all-keys-present? (required-keys plist)
     (let ((ok? t))
       (loop for key in required-keys
-	    do (let ()
-		 (when (not
-			(plist-get plist key))
-		   (warn (format
+            do (let ()
+                 (when (not
+                        (plist-get plist key))
+                   (warn (format
                           "required key %s not found in spec"
                           key))
-		   (setq ok? nil))))
+                   (setq ok? nil))))
       (when ok?
-	plist)))
+        plist)))
 
   (defun xcl-transclude--validate-resource-spec (spec)
     (xcl-transclude--is-all-keys-present?
@@ -202,23 +202,23 @@
 
 (defun xcl-transclude--json-rpc-request (rpc-command spec)
   (let* ((protocol (plist-get spec :protocol))
-	 (target-path (plist-get spec :target)))
+         (target-path (plist-get spec :target)))
     (json-rpc-request
      (json-rpc-connect XCL-TRANSCLUDE--SERVER-HOST XCL-TRANSCLUDE--SERVER-PORT)
      "/rpc"
      rpc-command
      (list :protocol protocol
-	   :directive (concat
-		       protocol ":"
-		       (if (string= protocol "file")
-			   ;; convert relpath to abspath for the server
-			   ;; WARNING: POSIX ONLY
-			   (if (string-prefix-p "/" target-path)
-			       target-path
-			     (concat default-directory
-				     target-path))
-			 ;; other protocols stay as-is
-			 target-path))))))
+           :directive (concat
+                       protocol ":"
+                       (if (string= protocol "file")
+                           ;; convert relpath to abspath for the server
+                           ;; WARNING: POSIX ONLY
+                           (if (string-prefix-p "/" target-path)
+                               target-path
+                             (concat default-directory
+                                     target-path))
+                         ;; other protocols stay as-is
+                         target-path))))))
 
 (defun xcl-transclude--retrieve-content-from-spec (spec)
   ;; (xcl-transclude--retrieve-content-from-spec
@@ -263,7 +263,7 @@
 
       (overlay-put ov 'is-xcl-transclude-overlay t)
       (overlay-put ov 'directive
-		   (plist-get parsed-resource-spec :directive))
+                   (plist-get parsed-resource-spec :directive))
       
       ;; set buffer modified to nil if it was not already modified
       (set-buffer-modified-p modified-p)
@@ -277,45 +277,45 @@
        )
 
       (let* ((resource-path (plist-get parsed-resource-spec
-				       :resource-resolver-path))
-	     (transcluded-file-path (file-truename resource-path))
-	     (maybe-file-buffer (get-file-buffer resource-path)))
-	
-	(overlay-put ov 'transcluded-file-path transcluded-file-path)
-	
-	(xcl-transclude--add-tracked-overlay
-	 (buffer-file-name)
-	 transcluded-file-path)
-	
-	(when maybe-file-buffer
+                                       :resource-resolver-path))
+             (transcluded-file-path (file-truename resource-path))
+             (maybe-file-buffer (get-file-buffer resource-path)))
+        
+        (overlay-put ov 'transcluded-file-path transcluded-file-path)
+        
+        (xcl-transclude--add-tracked-overlay
+         (buffer-file-name)
+         transcluded-file-path)
+        
+        (when maybe-file-buffer
           (xcl-transclude--add-save-hook-to-buffer
            maybe-file-buffer)))
       ov)))
 
 (defun xcl-transclude--trigger-update-overlays ()
   (let* ((transcluded-file-path (buffer-file-name))
-	 (source-buffer-list
-	  (gethash (buffer-file-name)
-		   xcl-transclude--active-source-file-hash)))
+         (source-buffer-list
+          (gethash (buffer-file-name)
+                   xcl-transclude--active-source-file-hash)))
     (dolist (source-buffer-name (delete-dups source-buffer-list))
       (let ((maybe-source-buffer (get-file-buffer source-buffer-name)))
-	(if maybe-source-buffer
-	    (with-current-buffer
-	      maybe-source-buffer
-	      (dolist (ov-to-update
-		       (reverse
-			(ov-in 'transcluded-file-path transcluded-file-path)))
-		(xcl-transclude--sync-overlay!
-		 ov-to-update)))
-	  ;; source buffer no longer available, remove it
-	  (setq
-	   xcl-transclude--active-source-file-hash
-	   (puthash
-	    (buffer-file-name)
-	    (cl-delete
-	     source-buffer-name
-	     source-buffer-list)
-	    xcl-transclude--active-source-file-hash)))))))
+        (if maybe-source-buffer
+            (with-current-buffer
+                maybe-source-buffer
+              (dolist (ov-to-update
+                       (reverse
+                        (ov-in 'transcluded-file-path transcluded-file-path)))
+                (xcl-transclude--sync-overlay!
+                 ov-to-update)))
+          ;; source buffer no longer available, remove it
+          (setq
+           xcl-transclude--active-source-file-hash
+           (puthash
+            (buffer-file-name)
+            (cl-delete
+             source-buffer-name
+             source-buffer-list)
+            xcl-transclude--active-source-file-hash)))))))
 
 (defun xcl-transclude--close-overlay! (&optional pos)
   (interactive (list (point)))
@@ -329,15 +329,15 @@
                       (yes-or-no-p "source file for this overlay was modified. discard changes? "))
                   (let ((del-start (overlay-start ov))
                         (del-end (overlay-end ov)))
-		    
+                    
                     (remove-overlays del-start del-end
-				     'transcluded-file-path
-				     transcluded-file-path)
-		    
-		    (xcl-transclude--remove-tracked-overlay
-		     (buffer-file-name)
-		     transcluded-file-path)
-		    
+                                     'transcluded-file-path
+                                     transcluded-file-path)
+                    
+                    (xcl-transclude--remove-tracked-overlay
+                     (buffer-file-name)
+                     transcluded-file-path)
+                    
                     (kill-region del-start del-end)
                     (set-buffer-modified-p current-modified-p))))))
       (setq ov-list (cdr ov-list)))))
@@ -352,7 +352,7 @@
       ;; then check if we are followed by an overlay?
       (let ((maybe-transclusion-directive
              (transclusion-directive-at-point)))
-	(cond (maybe-transclusion-directive
+        (cond (maybe-transclusion-directive
                ;; check if directive is followed by an overlay
                (save-excursion
                  (goto-char
@@ -363,18 +363,18 @@
                (let* ((directive (plist-get
                                   xcl-transclude-plist
                                   :directive))
-		      (ret-parsed-spec (xcl-transclude--retrieve-content-from-spec
+                      (ret-parsed-spec (xcl-transclude--retrieve-content-from-spec
                                         xcl-transclude-plist))
-		      (overlay (xcl-transclude--create-overlay! (point) ret-parsed-spec)))
-		 
-		 ;; parsed looks like:
-		 ;; (list :link "file:/path/to/transclusion-minor-mode/LICENSE::2,10"
-		 ;;       :protocol "file"
-		 ;;       :resource-resolver-path "/path/to/transclusion-minor-mode/LICENSE"
-		 ;;       :resource-resolver-method "exact-name"
-		 ;;       :content-resolvers [(:bound (:beg 2 :end 10) :type char-range)]
-		 ;;       :text "U GENERA")
-		 ret-parsed-spec))
+                      (overlay (xcl-transclude--create-overlay! (point) ret-parsed-spec)))
+                 
+                 ;; parsed looks like:
+                 ;; (list :link "file:/path/to/transclusion-minor-mode/LICENSE::2,10"
+                 ;;       :protocol "file"
+                 ;;       :resource-resolver-path "/path/to/transclusion-minor-mode/LICENSE"
+                 ;;       :resource-resolver-method "exact-name"
+                 ;;       :content-resolvers [(:bound (:beg 2 :end 10) :type char-range)]
+                 ;;       :text "U GENERA")
+                 ret-parsed-spec))
               (t
                (message "no overlay and no transclusion directive")))))))
 
@@ -393,7 +393,7 @@
     (let ((overlays (ov-all)))
       (dolist (ov overlays)
         (when (overlay-get ov 'is-xcl-transclude-overlay)
-	  ;; NOTE: this seems to cause the buffer modified flag to change
+          ;; NOTE: this seems to cause the buffer modified flag to change
           (delete-region (overlay-start ov)
                          (overlay-end ov))
           ;; this may be redundant due to 'evaporate
@@ -429,69 +429,69 @@
 
 (defun xcl-transclude--attempt-visit-transclusion-directive (parsed-directive)
   (cond ((and parsed-directive
-  	      (string= "file" (plist-get parsed-directive :protocol)))
-	 
-  	 (let ((full-file-name
+              (string= "file" (plist-get parsed-directive :protocol)))
+         
+         (let ((full-file-name
                 (expand-file-name
-  	         ;; need to post-process potential line number ranges
-  	         ;; for org-open-link-from-string
-  	         (let* ((target (plist-get parsed-directive :target))
-  	 	        (maybe-split (split-string target "::"))
-  	 	        (path (car maybe-split)))
-	           
-  	           (if (= 1 (length maybe-split))
-  	 	       ;; no intra-locator
-  	 	       path
-  	 	     (let ((intra-locator
-  	 	            (cadr maybe-split)))
-  	 	       (cond ((string-prefix-p "*" intra-locator)
-  	 		      ;; e.g. file:my-file.org::*myheading
-  	 		      target)
+                 ;; need to post-process potential line number ranges
+                 ;; for org-open-link-from-string
+                 (let* ((target (plist-get parsed-directive :target))
+                        (maybe-split (split-string target "::"))
+                        (path (car maybe-split)))
+                   
+                   (if (= 1 (length maybe-split))
+                       ;; no intra-locator
+                       path
+                     (let ((intra-locator
+                            (cadr maybe-split)))
+                       (cond ((string-prefix-p "*" intra-locator)
+                              ;; e.g. file:my-file.org::*myheading
+                              target)
 
-  	 		     ((string-match
-  	 		       "\\([[:digit:]]\\)+-.+"
-  	 		       intra-locator)
-  	 		      (concat
-  	 		       path "::"
-  	 		       (match-string 1 intra-locator)))
+                             ((string-match
+                               "\\([[:digit:]]\\)+-.+"
+                               intra-locator)
+                              (concat
+                               path "::"
+                               (match-string 1 intra-locator)))
 
-  	 		     ((string-match-p
-  	 		       "[[:digit:]]+"
-  	 		       intra-locator)
-  	 		      (concat path "::" intra-locator))
-			     
-  	 		     (t path))))))))
+                             ((string-match-p
+                               "[[:digit:]]+"
+                               intra-locator)
+                              (concat path "::" intra-locator))
+                             
+                             (t path))))))))
            (org-open-link-from-string
-  	    (format "[[%s]]" full-file-name))
+            (format "[[%s]]" full-file-name))
            (xcl-transclude--add-save-hook-to-buffer
             full-file-name)))
         
-	(t
+        (t
          (xcl-transclude--open-file-from-spec parsed-directive))))
 
 ;; override org's org-edit-special()
 (defun xcl-transclude--transclusion-org-edit-special-advice (&optional ARG PRED) 
   (let ((maybe-overlay (xcl-transclude--get-overlay-at-point))
-	(maybe-transclusion-directive
+        (maybe-transclusion-directive
          (transclusion-directive-at-point)))
     
     (cond (maybe-overlay
-	   (let* ((source-directive
-		   (overlay-get maybe-overlay 'directive))
-		  (parsed-directive
-		   (parse-transclusion-directive
-		    source-directive)))
-	     (xcl-transclude--attempt-visit-transclusion-directive
-	      parsed-directive)
-	     t))
-	  
-	  (maybe-transclusion-directive
-	   (xcl-transclude--attempt-visit-transclusion-directive
-	    maybe-transclusion-directive)
-	   t))))
+           (let* ((source-directive
+                   (overlay-get maybe-overlay 'directive))
+                  (parsed-directive
+                   (parse-transclusion-directive
+                    source-directive)))
+             (xcl-transclude--attempt-visit-transclusion-directive
+              parsed-directive)
+             t))
+          
+          (maybe-transclusion-directive
+           (xcl-transclude--attempt-visit-transclusion-directive
+            maybe-transclusion-directive)
+           t))))
 
 (advice-add 'org-edit-special :before-until
-	    'xcl-transclude--transclusion-org-edit-special-advice)
+            'xcl-transclude--transclusion-org-edit-special-advice)
 
 ;; ref http://emacs.stackexchange.com/a/358
 (defvar xcl-transclude-mode-map (make-sparse-keymap)
