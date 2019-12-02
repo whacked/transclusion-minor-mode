@@ -1,8 +1,7 @@
 (ns xcl.node-interop
   (:require [xcl.common :refer [get-file-extension]]
-            [xcl.core :as sc]
+            [xcl.core :as sc :refer [render-transclusion]]
             [xcl.content-interop :as ci]
-            [xcl.core :refer [render-transclusion]]
             [xcl.external :as ext]
             [xcl.pdfjslib-interop
              :refer [pdfjslib-load-text
