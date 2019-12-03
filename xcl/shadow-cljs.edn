@@ -2,7 +2,7 @@
  ["src"]
 
  :dependencies
- [[cider/cider-nrepl "0.16.0-SNAPSHOT"] ;; (cemerick.piggieback/cljs-repl :id-of-build)
+ [[cider/cider-nrepl "0.22.0-SNAPSHOT"]
   [reagent "0.8.1"]
   [com.cemerick/url "0.1.1"]]
 
