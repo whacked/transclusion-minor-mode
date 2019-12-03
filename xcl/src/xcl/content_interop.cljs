@@ -171,18 +171,15 @@
                                       (org-heading-positions index)]
                                   (if beg
                                     (if (<= (count stars) match-level)
-                                      (recur (rest remain)
-                                             match-level
-                                             beg index))
+                                      ;; exit at this found index
+                                      (recur (rest remain) match-level beg index)
+                                      ;; continue propogate end (nil)
+                                      (recur (rest remain) match-level beg end))
                                     (if (= target-heading heading-text)
                                       ;; after finding a match,
                                       ;; we need to continue to the section end
-                                      (recur (rest remain)
-                                             (count stars)
-                                             index end)
-                                      (recur (rest remain)
-                                             match-level
-                                             beg end)))))))))
+                                      (recur (rest remain) (count stars) index end)
+                                      (recur (rest remain) match-level beg end)))))))))
          :org-section-with-match
          (fn [spec content]
            (let [match-pattern (-> spec
