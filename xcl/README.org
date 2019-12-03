@@ -1,11 +1,82 @@
-* transclusion from javascript
+* node/browser based transclusion engine
 
-  - resource resolvers
-  - content resolvers
-  
+  *TODO* this should be moved to a separate library
+
+** resource resolvers
+
+   given a resource =address=, return a reliable and easy to consume
+   resource; currently, text is the primary interest.
+
+   resolvers may contain resource-provider-specific syntax, such as
+   using globs for local files, or text search queries for
+   full-text-backed resource providers
+
+*** pdf file
+
+*** html file
+
+*** zotero
+
+    passes either to pdf or html resolvers
+    
+*** calibre
+
+    passes to its epub resolver
+    
+*** org mode file
+
+*** local git repo
+
+    follow github syntax, e.g.:
+    https://github.com/hubotio/hubot/blob/ed25584f5ac2520a6c28547ffd0961c7abd7ea49/README.md
+
+    =git:path-to-repo.git/blob/$COMMIT_HASH/$filename=
+    
+** content resolvers
+
+   given content resolved from a resource address, resolve to a
+   specific portion of the content
+
+   see [[file:src/xcl/content_interop.cljs]] for resolvers; some examples:
+
+   - whole-file
+   - line-range
+   - org-heading
+   - org section
+
+* example usage
+
+  for API see [[file:test.cljs]]
+
+  #+BEGIN_SRC javascript :eval never :tangle test.js :padline no
+    let xcl = require("./build/transclusion.js")
+
+    // corresponds to corpus.cljs
+    const FileCache = {
+        "xcl-test-3-a.org": "content of A!\n\naye aye aye",
+        "xcl-test-3-b.org": "* I am B and I include A\n\n** {{{transclude(xcl:xcl-test-3-a.org)}}}",
+        "xcl-test-3-c.org": "* I am C and I include B\n\n*{{{transclude(xcl:xcl-test-3-b.org)}}}",
+    }
+
+    function list_files() {
+        return Object.keys(FileCache)
+    }
+    function load_content(filename) {
+        return FileCache[filename]
+    }
+
+    console.log("=== INPUT ===")
+    console.log(load_content("xcl-test-3-c.org"))
+    console.log("=== OUTPUT ===")
+    console.log(xcl.render(
+        list_files,
+        load_content,
+        load_content("xcl-test-3-c.org")))
+  #+END_SRC
+
 * test environment setup
   
-** browser testing
+** browser testing + cider usage
 
    #+BEGIN_SRC sh :eval never
    yarn global add shadow-cljs
@@ -14,6 +85,8 @@
    #+END_SRC
 
    open the browser to http://localhost:8020/ to load the tests
+
+   once the browser is loaded, you can also connect from emacs
 
 ** node library testing
 
@@ -33,41 +106,38 @@
    note that because the resource loaders are async, the process is
    made to exit using an atom to count the remaining tests.
    
+** node REPL setup + cider
+
+   first get these 2 processes running
+
+*** terminal 1
+
+   #+BEGIN_SRC sh :eval never
+   shadow-cljs watch node-test
+   #+END_SRC
+
+*** terminal 2 (node example)
+
+    *TODO* fix the process exiter in test, or create a separate node
+    file for repl use
+    
+    #+BEGIN_SRC sh :eval never
+    # you will have to comment out the process exiter;
+    # this command should block and provide the repl process
+    node build/test.js
+    #+END_SRC
+
+*** cider connect
+
+    =M-x cider-connect-cljs=
+
 * building for node.js
 
   #+BEGIN_SRC sh :eval never
   shadow-cljs release lib-sample
   #+END_SRC
 
-** example usage
-
-   #+BEGIN_SRC javascript :eval never :tangle test.js :padline no
-     let xcl = require("./build/transclusion.js")
-
-     // corresponds to corpus.cljs
-     const FileCache = {
-         "xcl-test-3-a.org": "content of A!\n\naye aye aye",
-         "xcl-test-3-b.org": "* I am B and I include A\n\n** {{{transclude(xcl:xcl-test-3-a.org)}}}",
-         "xcl-test-3-c.org": "* I am C and I include B\n\n*{{{transclude(xcl:xcl-test-3-b.org)}}}",
-     }
-
-     function list_files() {
-         return Object.keys(FileCache)
-     }
-     function load_content(filename) {
-         return FileCache[filename]
-     }
-
-     console.log("=== INPUT ===")
-     console.log(load_content("xcl-test-3-c.org"))
-     console.log("=== OUTPUT ===")
-     console.log(xcl.render(
-         list_files,
-         load_content,
-         load_content("xcl-test-3-c.org")))
-   #+END_SRC
-
-* test files
+* test files sources
 
   - alice.epub :: http://www.gutenberg.org/ebooks/11
   - tracemonkey.pdf :: https://github.com/mozilla/pdf.js/blob/master/test/pdfs/tracemonkey.pdf
