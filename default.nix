@@ -11,7 +11,7 @@ stdenv.mkDerivation rec {
         emacs
         git
 
-        nodejs
+        nodejs-10_x
     ];
     shellHook = ''
         export GTK_THEME=Adwaita
@@ -36,5 +36,7 @@ stdenv.mkDerivation rec {
         if [ ! -e ./ext--json-rpc-request ]; then
             git submodule init && git submodule update
         fi
+
+        cat default.nix | grep '[a]lias'
     '';
 }
