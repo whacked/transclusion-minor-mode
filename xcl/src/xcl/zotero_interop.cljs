@@ -14,28 +14,40 @@
 
 (def $zotero-library-directory
   (let [process-user (aget js/process "env" "USER")]
-   (loop [remain
-          [(aget js/process "env" "USERPROFILE") ;; windows
-           (aget js/process "env" "HOME")
-           (path-join "/home" process-user)
-           (path-join "/Users" process-user)]
-          maybe-zotero-dir nil]
-     (if (or (empty? remain)
-             (and maybe-zotero-dir
-                  (path-exists? maybe-zotero-dir)))
-       maybe-zotero-dir
-       (recur
-        (rest remain)
-        (when-let [candidate (first remain)]
-          (path-join candidate "Zotero")))))))
+    (loop [remain
+           [(aget js/process "env" "USERPROFILE") ;; windows
+            (aget js/process "env" "HOME")
+            (path-join "/home" process-user)
+            (path-join "/Users" process-user)]
+           maybe-zotero-dir nil]
+      (let [found-path? (some-> maybe-zotero-dir
+                                (path-exists?))]
+        (if (or (empty? remain)
+                found-path?)
+          (when found-path? maybe-zotero-dir)
+          (recur
+           (rest remain)
+           (when-let [candidate (first remain)]
+             (path-join candidate "Zotero"))))))))
 
 (def $zotero-db-path
-  (path-join $zotero-library-directory "zotero.sqlite"))
+  (some-> $zotero-library-directory
+          (path-join "zotero.sqlite")))
 
 (when-not $zotero-library-directory
   (js/console.error "ERROR: could not detect zotero library path"))
 
-(def $zotero-db (new sqlite3/Database $zotero-db-path))
+(def $zotero-db
+  (when $zotero-db-path
+    (try
+      (new sqlite3/Database
+           $zotero-db-path
+           sqlite3/OPEN_READONLY)
+      (catch js/Error e
+        (js/console.error
+         (str "ERROR: could not open zotero database at "
+              $zotero-db-path
+              " / " e))))))
 
 (defn zotero-get-attachment-key-path-filepath
   [attachment-key attachment-path]
