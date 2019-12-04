@@ -27,6 +27,19 @@
 (defn cyan [s]
   (js/console.log (nocolor "\033[36m" s)))
 
+(defn slurp [path]
+  (.readFileSync fs path "utf-8"))
+
+(def $XCL-SERVER-RESOURCE-BASE-DIR
+  (path-join
+   (.cwd js/process) ".."))
+
+(defn get-resource-path
+  [file-name]
+  (path-join
+   $XCL-SERVER-RESOURCE-BASE-DIR
+   file-name))
+
 (defn run-all-tests! []
   (when-let [test-func (first @all-tests)]
     (swap! all-tests rest)
@@ -123,19 +136,6 @@
         "### process running from dir\n"
         "    " (.cwd js/process)
         "\n\n"))
-
-  (def XCL-SERVER-RESOURCE-BASE-DIR
-    (path-join
-     (.cwd js/process) ".."))
-
-  (defn get-resource-path
-    [file-name]
-    (path-join
-     XCL-SERVER-RESOURCE-BASE-DIR
-     file-name))
-
-  (defn slurp [path]
-    (.readFileSync fs path "utf-8"))
 
   (defn load-from-directive [directive]
     (let [spec (sc/parse-link directive)
