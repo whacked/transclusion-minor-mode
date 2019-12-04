@@ -7,7 +7,8 @@
              [path-join]]
             [xcl.external :as ext]
             [xcl.calibre-interop :as calibre]
-            [xcl.zotero-interop :as zotero]))
+            [xcl.zotero-interop :as zotero]
+            [xcl.git-interop :as git]))
 
 (def all-tests (atom []))
 
@@ -211,6 +212,8 @@
   (add-node-test! pdf-loader-test)
   
   (add-node-test! epub-loader-test)
+  
+  (add-node-test! git-test-load-content)
   
   (run-all-tests!))
 
