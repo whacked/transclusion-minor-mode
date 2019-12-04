@@ -1,7 +1,5 @@
 (ns xcl.test
-  (:require ["sqlite3" :as sqlite3]
-            ["yesql" :as yesql]
-            ["fs" :as fs]
+  (:require ["fs" :as fs]
             [xcl.core :as sc]
             [xcl.content-interop :as ci]
             [xcl.node-interop :as ni]

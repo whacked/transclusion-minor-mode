@@ -307,7 +307,7 @@
                 "file:tiny.org" "tiny.org"]
                ["exact match"
                 "file:test-note-file.json" "test-note-file.json"]
-               ["exact macth"
+               ["exact match"
                 "grep:ZZ+you" "dummy.org"]
                ["glob file name"
                 "file:d*y.org" "dummy.org"]

@@ -14,9 +14,7 @@
             ["js-yaml" :as yaml]
             ["JSONPath" :as JSONPath]
             [xcl.node-common :refer
-             [path-exists? path-join]]
-            [xcl.calibre-interop :as calibre]
-            [xcl.zotero-interop :as zotero]))
+             [path-exists? path-join]]))
 
 ;;;;;;;;;;;;;;;
 ;; epub, pdf ;;
