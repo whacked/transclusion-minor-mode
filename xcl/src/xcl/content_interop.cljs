@@ -153,11 +153,8 @@
                                  (find-first-matching-string-element
                                   spec (clojure.string/split content #"[\r\t ]*\n[\r\t ]*\n[\r\t ]*")))
          :org-heading (fn [spec content]
-                        (let [target-heading (-> spec
-                                                 (get-in [:bound :heading])
-                                                 (clojure.string/lower-case))
-                              org-heading-positions (get-org-heading-positions
-                                                     content)]
+                        (let [target-heading (-> spec (get-in [:bound :heading]))
+                              org-heading-positions (get-org-heading-positions content)]
                           (when-not (empty? org-heading-positions)
                             (loop [remain (sort (keys org-heading-positions))
                                    match-level nil
@@ -167,8 +164,13 @@
                                       (and match-level beg end))
                                 (subs content beg (or end (count content)))
                                 (let [index (first remain)
-                                      [stars heading-text]
-                                      (org-heading-positions index)]
+                                      [stars full-heading-text]
+                                      (org-heading-positions index)
+
+                                      ;; strip tags
+                                      heading-text (-> full-heading-text
+                                                       (clojure.string/replace
+                                                        #"\s+:[\w :]+:\s*$" ""))]
                                   (if beg
                                     (if (<= (count stars) match-level)
                                       ;; exit at this found index

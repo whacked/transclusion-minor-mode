@@ -430,6 +430,31 @@
          "* decoy 1"
          "tiny.org" :exact-name
          :org-heading {:heading "decoy 1"}]
+        ["native org: heading 2 star"
+         "file:dummy.org::*famous script"
+         "** famous script\n\n   Captain and CATS\n   \n   In 2101, war was beginning. What happen? Main screen turn on. For great justice. Move ZIG."
+         "dummy.org" :exact-name
+         :org-heading {:heading "famous script"}]
+        ["native org: heading with url-encoded utf-8"
+         "file:dummy.org::*random%20extra%20content%20%E4%B8%96%E7%95%8C"
+         "* random extra content 世界                                     :tricky:trap:\n\n  Support attributes like ~SCHEDULED:~."
+         "dummy.org" :exact-name
+         :org-heading {:heading "random extra content 世界"}]
+        ["native org: heading with as-is utf-8"
+         "file:dummy.org::*random extra%20content 世界"
+         "* random extra content 世界                                     :tricky:trap:\n\n  Support attributes like ~SCHEDULED:~."
+         "dummy.org" :exact-name
+         :org-heading {:heading "random extra content 世界"}]
+        ["native org: heading with 1 percent-encoding"
+         "file:dummy.org::*percent sign %25: to mess:you:up"
+         "* percent sign %: to mess:you:up\n\n  %escaping your heading link%"
+         "dummy.org" :exact-name
+         :org-heading {:heading "percent sign %: to mess:you:up"}]
+        ["native org: heading with all percent-encoding"
+         "file:dummy.org::*percent%20sign%20%25:%20to%20mess:you:up"
+         "* percent sign %: to mess:you:up\n\n  %escaping your heading link%"
+         "dummy.org" :exact-name
+         :org-heading {:heading "percent sign %: to mess:you:up"}]
         ["exact string match range"
          "file:dummy.org::in 2101...for great justice"
          "In 2101, war was beginning. What happen? Main screen turn on. For great justice"
@@ -512,7 +537,6 @@
           {:type :token-bound
            :bound {:token-beg "Monkey observes that"
                    :token-end "so TraceMonkey attempts"}}]]
-
         ["grab text from json"
          "xcl:test-note-file.json?jsonpath=$[6].content"
          "floating note"
@@ -520,7 +544,6 @@
          nil
          [{:type :jsonpath
            :bound {:jsonpath "$[6].content"}}]]
-
         ["grab text from yml"
          "xcl:test-highlight-file.yml?jsonpath=$.highlights[2].highlightText"
          "yaml indented text block that spans 2 lines"
@@ -528,7 +551,6 @@
          nil
          [{:type :jsonpath
            :bound {:jsonpath "$.highlights[2].highlightText"}}]]
-        
         ]
        (map (fn [[desc
                   link

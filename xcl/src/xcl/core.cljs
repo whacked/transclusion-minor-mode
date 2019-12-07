@@ -1,5 +1,5 @@
 (ns xcl.core
-  (:require [cemerick.url :refer (url url-encode)]
+  (:require [cemerick.url :refer [url url-encode url-decode]]
             [xcl.content-interop :as ci]
             [xcl.common :refer [re-pos conj-if-non-nil
                                 get-file-extension]]))
@@ -118,7 +118,7 @@
                    :end (:beg match))
             (select-keys match [:beg :end])))))]
    [:org-heading
-    (make-named-matcher #"^\*\s*([\w ]+)$" [:heading])]
+    (make-named-matcher #"^\*\s*([^\*].+)$" [:heading] [url-decode])]
    [:token-bound
     (make-named-matcher #"^(\S.+)\.\.\.(\S.+)$" [:token-beg :token-end])]
    ])
