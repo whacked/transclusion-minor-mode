@@ -1,6 +1,6 @@
 (ns xcl.external
   (:require ["js-yaml" :as yaml]
-            ["JSONPath" :as JSONPath]))
+            ["jsonpath-plus" :as JSONPath]))
 
 (def $ExternalLoaders (atom {}))
 
@@ -15,5 +15,8 @@
   (.safeLoad yaml yaml-string))
 
 (defn read-jsonpath-content [js-object jsonpath]
-  (JSONPath (clj->js {:json js-object
-                      :path jsonpath})))
+  (js-invoke
+   JSONPath
+   "JSONPath"
+   (clj->js {:json js-object
+             :path jsonpath})))

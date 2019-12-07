@@ -1,18 +1,18 @@
 {
   "dependencies": {
-    "JSONPath": "^0.11.2",
     "create-react-class": "^15.6.3",
-    "epub": "^1.1.0",
-    "express": "^4.16.4",
-    "isomorphic-git": "^0.70.8",
-    "js-yaml": "^3.12.0",
-    "jsdom": "^13.0.0",
+    "epub": "^1.2.0",
+    "express": "^4.17.1",
+    "isomorphic-git": "^0.70.9",
+    "js-yaml": "^3.13.1",
+    "jsdom": "^13.2.0",
+    "jsonpath-plus": "^2.0.0",
     "multitransport-jsonrpc": "^0.9.11",
-    "pdfjs-dist": "^2.0.943",
-    "react": "^16.6.3",
-    "react-dom": "^16.6.3",
-    "shadow-cljs": "^2.7.34",
-    "sqlite3": "^4.0.4",
+    "pdfjs-dist": "^2.2.228",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "shadow-cljs": "^2.8.81",
+    "sqlite3": "^4.1.1",
     "yesql": "^3.2.2"
   }
 }
