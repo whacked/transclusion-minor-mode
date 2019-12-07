@@ -50,12 +50,14 @@
   {:pre [(map? m)]}
   (->> m
        (sort)
-       (map (fn [[k v]]
-              [:tr
-               [:th [:code k]]
-               [:td [:code (subs
-                            (pr-str v)
-                            0 500)]]]))
+       (map-indexed
+        (fn [i [k v]]
+          ^{:key (str i "-" k)}
+          [:tr
+           [:th [:code k]]
+           [:td [:code (subs
+                        (pr-str v)
+                        0 500)]]]))
        (concat [:tbody])
        (vec)
        (vector :table {:style {:font-size "x-small"}})
@@ -125,7 +127,9 @@
       (reverse
        (if (= 0 current-index)
              out
-             (conj out [:span (subs text 0 current-index)])))
+             (conj out
+                   ^{:key (str "highlight-" current-index)}
+                   [:span (subs text 0 current-index)])))
       (let [highlight (first remain)
             h-index (:index highlight)
             h-length (:length highlight)
@@ -133,8 +137,11 @@
         (recur (rest remain)
                h-index
                (conj (if (< h-end current-index)
-                       (conj out [:span (subs text h-end current-index)])
+                       (conj out
+                             ^{:key (str current-index "-" h-index "-interim-" highlight)}
+                             [:span (subs text h-end current-index)])
                        out)
+                     ^{:key (str current-index "-" h-index "-normal-" highlight)}
                      [:span
                       {:style {:background "green"
                                :color "yellow"}}
@@ -177,6 +184,7 @@
                         (->> all-matches
                              (sc/get-all-valid-token-match-arrangements)
                              (map (fn [token-match-arrangement]
+                                    ^{:key token-match-arrangement}
                                     [:tr
                                      [:td]
                                      [:td
@@ -208,26 +216,28 @@
                 [:compact
                  " van car car car boat car car car boat boat truck boat van van car train "
                  " car car boat van "]]
-               (map (fn [[method content target]]
-                      (let [match-method (case method
-                                           :default sc/find-successive-tokens-in-content
-                                           :compact sc/find-most-compact-token-matches-in-content)
-                            matches (match-method
-                                     content
-                                     (-> target
-                                         (clojure.string/trim)
-                                         (clojure.string/split #"\s+")))]
-                        [:tr
-                         [:td
-                          (name method)]
-                         [:td
-                          (render-highlights-in-text content matches)]
-                         [:td target]
-                         [:td
-                          [:pre
-                           (-> matches
-                               (clj->js)
-                               (js/JSON.stringify nil 2))]]]))))]]
+               (map-indexed
+                (fn [i [method content target]]
+                  (let [match-method (case method
+                                       :default sc/find-successive-tokens-in-content
+                                       :compact sc/find-most-compact-token-matches-in-content)
+                        matches (match-method
+                                 content
+                                 (-> target
+                                     (clojure.string/trim)
+                                     (clojure.string/split #"\s+")))]
+                    ^{:key (str i "-" match-method)}
+                    [:tr
+                     [:td
+                      (name method)]
+                     [:td
+                      (render-highlights-in-text content matches)]
+                     [:td target]
+                     [:td
+                      [:pre
+                       (-> matches
+                           (clj->js)
+                           (js/JSON.stringify nil 2))]]]))))]]
    
         (let [doc-names ["tiny.org"
                          "big.org"
@@ -278,6 +288,7 @@
                          (let [matches-for-index
                                (when-let [maybe-matches (get all-matches index)]
                                  maybe-matches)]
+                           ^{:key (str index "-" fname)}
                            [:tr
                             [:td index]
                             [:td fname]
@@ -285,7 +296,10 @@
                              [:ul
                               (->> matches-for-index
                                    (map :target)
-                                   (map (partial vector :li)))]
+                                   (map-indexed
+                                    (fn [i target]
+                                      ^{:key (str i "-" target)}
+                                      [:li target])))]
                              ]
                             [:td
                              [:pre
@@ -316,36 +330,38 @@
                ["fake protocol"
                 "fakeout:dummy.org" "dummy.org"]]]
     (->> cases
-         (map (fn [[desc link expected-name]]
-                (let [received-name (r/atom nil)]
-                  [(fn []
+         (map-indexed
+          (fn [i [desc link expected-name]]
+            (let [received-name (r/atom nil)]
+              [(fn []
                      
-                     (resolve-resource-spec-async
-                      link
-                      (fn [resolved-resource-spec]
-                        (reset! received-name
-                                (:resource-resolver-path
-                                 resolved-resource-spec))))
+                 (resolve-resource-spec-async
+                  link
+                  (fn [resolved-resource-spec]
+                    (reset! received-name
+                            (:resource-resolver-path
+                             resolved-resource-spec))))
                      
-                     (let [success? (if (nil? @received-name)
-                                      nil
-                                      (= expected-name @received-name))]
-                       (if-not (and (get-in @view-state [:hide-passing?])
-                                    success?)
-                         [:tr
-                          [:td
-                           {:style (case success?
-                                     true {:background-color "lime" :color "white"}
-                                     false {:background-color "red" :color "white"}
-                                     {})}
-                           (case success?
-                             true "PASS"
-                             false "FAIL"
-                             "")]
-                          [:td desc]
-                          [:td link]
-                          [:td expected-name]
-                          [:td @received-name]])))])))
+                 (let [success? (if (nil? @received-name)
+                                  nil
+                                  (= expected-name @received-name))]
+                   (if-not (and (get-in @view-state [:hide-passing?])
+                                success?)
+                     ^{:key (str i "-" link)}
+                     [:tr
+                      [:td
+                       {:style (case success?
+                                 true {:background-color "lime" :color "white"}
+                                 false {:background-color "red" :color "white"}
+                                 {})}
+                       (case success?
+                         true "PASS"
+                         false "FAIL"
+                         "")]
+                      [:td desc]
+                      [:td link]
+                      [:td expected-name]
+                      [:td @received-name]])))])))
          (concat [:tbody
                   [:tr
                    [:th "PASS?"]
@@ -565,6 +581,7 @@
                      (if (and success?
                               (get-in @view-state [:hide-passing?]))
                        nil
+                       ^{:key received-spec}
                        [:tr
                         {:style {:font-size "x-small"}}
                         [:td
@@ -688,6 +705,7 @@ aye aye aye??-2@??-1@"
                      (if (and (get-in @view-state [:hide-passing?])
                               is-same?)
                        nil
+                       ^{:key source-file}
                        [:tr
                         [:td
                          {:style {:color "white"
@@ -705,6 +723,7 @@ aye aye aye??-2@??-1@"
                          "expected"
                          "rendered"]
                         (map (fn [hdr]
+                               ^{:key (str "th-" hdr)}
                                [:th hdr])))]])
          (vec)
          (vector :table)
