@@ -66,58 +66,71 @@
 ;; TODO: revisit the pdb/epub special case ugliness
 (defn resolve-resource-spec-async
   [link on-resolved-resource-spec]
-  (sc/get-resource-match-async
-   ;; candidate-seq-loader-async
-   (fn [resource-name-matcher
-        callback]
-     
-     (if (#{"pdf" "epub"}
-          (get-file-extension resource-name-matcher))
-       (do
-         (callback [resource-name-matcher]))
-       (->> (corpus/list-files
-             resource-name-matcher)
-            (callback))))
-   
-   ;; content-loader-async
-   (fn [resolved-spec callback]
-     (js/console.log "hitting content loader for"
-                     (pr-str
-                      (select-keys resolved-spec
-                                   [:resource-resolver-method
-                                    :resource-resolver-path])))
-     (let [path (:resource-resolver-path resolved-spec)]
-       (when-let [content (corpus/file-cache path)]
-         (callback content))))
-   
-   ;; link
-   link
-   
-   ;; callback
-   on-resolved-resource-spec))
+  
+  (cond (clojure.string/starts-with? link "<<org-text>>")
+        (->> (@corpus/org-text-buffer "<<org-text>>")
+             (assoc (sc/parse-link link) :org-text)
+             (on-resolved-resource-spec))
+        
+        :else
+        (sc/get-resource-match-async
+         ;; candidate-seq-loader-async
+         (fn [resource-name-matcher
+              callback]
+           
+           (cond (and resource-name-matcher
+                      (#{"pdf" "epub"}
+                       (get-file-extension resource-name-matcher)))
+                 (callback [resource-name-matcher])
+                 
+                 ;; file in corpus
+                 :else
+                 (->> (corpus/list-files
+                       resource-name-matcher)
+                      (callback))))
+         
+         ;; content-loader-async
+         (fn [resolved-spec callback]
+           (js/console.log "hitting content loader for\n"
+                           (pr-str
+                            (select-keys resolved-spec
+                                         [:resource-resolver-method
+                                          :resource-resolver-path])))
+           (let [path (:resource-resolver-path resolved-spec)]
+             (when-let [content (corpus/file-cache path)]
+               (callback content))))
+         
+         ;; link
+         link
+         
+         ;; callback
+         on-resolved-resource-spec)))
 
 (defn load-content-async
   [resource-spec on-content]
   (let [path (:resource-resolver-path resource-spec)
-        extension (get-file-extension path)]
-    (js/console.warn
-     (str
-      "%c ===> resource address %c "
-      path)
-     "color:white;background:red;"
-     "color:black;background:yellow;")
-   
-    (if-let [external-loader (@ext/$ExternalLoaders extension)]
-      (external-loader
-       resource-spec on-content)
-      (do
-        (js/console.warn
-         "using fallback loader (corpus cache exact match)...")
-        (js/setTimeout
-         (fn []
-           (on-content
-            (corpus/file-cache path)))
-         (* 1000 (Math/random)))))))
+        extension (when path
+                    (get-file-extension path))]
+    
+    (cond (@ext/$ExternalLoaders extension)
+          (let [external-loader (@ext/$ExternalLoaders extension)]
+            (external-loader
+             resource-spec on-content))
+
+          (:org-text resource-spec)
+          (let [org-content (:org-text resource-spec)]
+            (on-content org-content))
+          
+          :else
+          (do
+            (js/console.warn
+             (str "using fallback loader (corpus cache exact match):\n"
+                  (pr-str resource-spec)))
+            (js/setTimeout
+             (fn []
+               (on-content
+                (corpus/file-cache path)))
+             (* 1000 (Math/random)))))))
 
 (defn render-highlights-in-text [text highlights]
   (loop [remain (reverse highlights)
@@ -551,6 +564,21 @@
          nil
          [{:type :jsonpath
            :bound {:jsonpath "$.highlights[2].highlightText"}}]]
+        ["raw org text"
+         "<<org-text>>::*b-heading"
+         "* b-heading  :tag:tiger:\n\n  my text in the b heading"
+         nil
+         :<<org-text>>
+         :org-heading
+         {:heading "b-heading"}
+         ]
+        ["raw org text"
+         "<<org-text>>::*a heading"
+         "* a heading\n\nnorth star mars car"
+         nil
+         :<<org-text>>
+         :org-heading
+         {:heading "a heading"}]
         ]
        (map (fn [[desc
                   link

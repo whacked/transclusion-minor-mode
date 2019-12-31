@@ -1,6 +1,16 @@
 (ns xcl.corpus
   (:require-macros [xcl.static-loader :as loader]))
 
+(def org-text-buffer
+  (atom {"<<org-text>>"
+         "* a heading
+
+north star mars car
+
+* b-heading  :tag:tiger:
+
+  my text in the b heading"}))
+
 (def file-cache
   {"LICENSE" (loader/slurp-file "LICENSE")
    "100lines" (->> (range 100)

@@ -14,9 +14,14 @@
      :grep
      :xcl}))
 
+(def $in-memory-buffer-types
+  (atom
+   #{:org-text}))
+
 (def $known-resource-resolver-mapping
   (atom
-   {:grep :grep-content}))
+   {:grep :grep-content
+    :org-text :<<org-text>>}))
 
 (def link-matcher
   (-> (str
@@ -167,6 +172,15 @@
     ("pdf" "epub") :exact-name-with-subsection
     :exact-name))
 
+(defn parse-in-memory-buffer-type [link]
+  (cond (clojure.string/starts-with?
+         link
+         "<<org-text>>")
+        :org-text
+
+        :else
+        nil))
+
 (defn parse-link [link]
   (let [protocol-matcher
         (-> (str
@@ -180,8 +194,17 @@
         
         [maybe-protocol maybe-remainder]
         (rest (re-find protocol-matcher link))
+
+        maybe-in-memory-buffer-type (when maybe-remainder
+                                      (parse-in-memory-buffer-type maybe-remainder))
         
-        protocol (keyword (or maybe-protocol "file"))
+        protocol (cond maybe-protocol
+                       (keyword maybe-protocol)
+
+                       :else
+                       (or maybe-in-memory-buffer-type
+                           :file))
+        
         remainder (or maybe-remainder link)
         
         [path maybe-qualifier-separator maybe-qualifier]
@@ -211,7 +234,10 @@
     
     {:link link
      :protocol protocol
-     :resource-resolver-path (js/decodeURI path)
+     :resource-resolver-path (if (@$in-memory-buffer-types
+                                  protocol)
+                               nil
+                               (js/decodeURI path))
      :resource-resolver-method (cond (re-find #"\*" path)
                                      :glob-name
 
@@ -244,22 +270,23 @@
                                   :resource-resolver-path match))))
 
           :glob-name (fn [matching-resources]
-                       (let [file-pattern (-> resource-resolver-path
-                                              (clojure.string/replace "*" ".*")
-                                              (re-pattern)) ]
-                         (when-let [match (->> matching-resources
-                                               (filter
-                                                (fn [p] (re-find file-pattern p)))
-                                               (first))]
+                       (let [file-pattern (some-> resource-resolver-path
+                                                  (clojure.string/replace "*" ".*")
+                                                  (re-pattern))]
+                         (when-let [match (when file-pattern
+                                            (->> matching-resources
+                                                 (filter
+                                                  (fn [p] (re-find file-pattern p)))
+                                                 (first)))]
                            (callback-on-received-match
                             (assoc resolved
                                    :resource-resolver-path match)))))
 
           :grep-content (fn [matching-resources]
-                          (let [grep-pattern (-> resource-resolver-path
-                                                 (clojure.string/replace "+" " ")
-                                                 (clojure.string/replace "%20" " ")
-                                                 (re-pattern))
+                          (let [grep-pattern (some-> resource-resolver-path
+                                                     (clojure.string/replace "+" " ")
+                                                     (clojure.string/replace "%20" " ")
+                                                     (re-pattern))
                                 maybe-load-content-async!
                                 (fn maybe-load-content-async! [candidates]
                                   (when-not (empty? candidates)
@@ -270,7 +297,8 @@
                                               :resource-resolver-path
                                               fname)
                                        (fn [content]
-                                         (if (re-find grep-pattern content)
+                                         (if (some-> grep-pattern
+                                                     (re-find content))
                                            (callback-on-received-match
                                             candidate-spec)
                                            (maybe-load-content-async!
