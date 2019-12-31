@@ -165,6 +165,8 @@
     [(fn []
        [:div
 
+        [:h2 "text anchoring"]
+
         [:table
          {:style {:border-collapse "collapse"
                   :font-family "Consolas, Inconsolata, Monaco, Ubuntu, Monospace"
@@ -285,7 +287,7 @@
               :checked @use-compact?
               :on-change (fn [evt]
                            (reset! use-compact? (aget evt "target" "checked")))}]
-            "use compact token matcher"]
+            "prefer matches with maximal token cluster compactness?"]
            [:table
             {:style {:border-collapse "collapse"}}
             [:style "td { border: 1px solid gray; }"]
