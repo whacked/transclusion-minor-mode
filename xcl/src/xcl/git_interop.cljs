@@ -5,7 +5,7 @@
             ["fs" :as fs]
             ["path" :as path]
             ["js-yaml" :as yaml]
-            ["JSONPath" :as JSONPath]
+            ["jsonpath-plus" :as JSONPath]
             ["isomorphic-git" :as git]
             [xcl.node-common :refer
              [path-exists? path-join]]))
