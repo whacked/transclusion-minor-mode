@@ -20,7 +20,8 @@
    [xcl.node-common :refer
     [path-join path-exists? slurp-file]]
    [xcl.calibre-interop :as calibre]
-   [xcl.zotero-interop :as zotero]))
+   [xcl.zotero-interop :as zotero]
+   [xcl.git-interop :as git]))
 
 (def $JSONRPC-PORT
   (let [config-file-path (path-join
