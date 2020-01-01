@@ -135,4 +135,3 @@
                         path-in-repo
                         commit-oid
                         on-resolved)))))))))
-

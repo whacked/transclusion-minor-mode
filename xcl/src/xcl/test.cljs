@@ -105,6 +105,44 @@
 
     (signal-test-done!)))
 
+(defn git-direct-content-loader-test []
+  (let [path-in-repo "xcl/src/calibre.sql"
+        commit-oid "7f7b9c5d009a376036f1bba0ab2ef9e1966cbc57"
+        expected-content (-> $XCL-SERVER-RESOURCE-BASE-DIR
+                             (path-join path-in-repo)
+                             (slurp))]
+    (git/load-repo-file-from-commit
+     $XCL-SERVER-RESOURCE-BASE-DIR
+     path-in-repo
+     commit-oid
+     (fn [text]
+       (if (= expected-content text)
+         (do
+           (green "[GIT] load content OK"))
+         (do
+           (red "[GIT] load content fail")
+           (println "=== EXPECTED ===" expected-content)
+           (println "=== RECEIVED ===" text)))
+       (signal-test-done!)))))
+
+(defn git-resolved-content-loader-test []
+  (let [git-href
+        (str "git:" $XCL-SERVER-RESOURCE-BASE-DIR
+             "/blob/e12ac284de45e07f58698f11472b10569d574130/xcl/README.org::*example usage")
+        spec (sc/parse-link git-href)]
+    (load-local-resource
+     spec
+     (fn [full-content]
+       (let [resolved-content (ci/resolve-content spec full-content)]
+         (if (clojure.string/starts-with?
+              resolved-content
+              "* example usage")
+           (green "[GIT] resolved content loader OK")
+           (do
+             (red "[GIT] resolved content loader FAIL")
+             (println "=== RECEIVED  ===" resolved-content)))
+         (signal-test-done!))))))
+
 (defn zotero-test-pdf []
   (zotero/load-text-from-file
    "Trace-based just-in-time*.pdf"
@@ -265,7 +303,9 @@
   
   (add-node-test! epub-loader-test)
   
-  (add-node-test! git-test-load-content)
+  (add-node-test! git-direct-content-loader-test)
+  
+  (add-node-test! git-resolved-content-loader-test)
   
   (add-node-test! fs-abspath-and-relpath-file-loader)
   
