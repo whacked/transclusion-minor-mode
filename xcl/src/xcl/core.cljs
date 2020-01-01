@@ -11,6 +11,7 @@
 (def $known-protocols
   (atom
    #{:file
+     :git
      :grep
      :xcl}))
 
@@ -249,8 +250,12 @@
                                       @$known-resource-resolver-mapping
                                       protocol)
                                      (@$known-resource-resolver-mapping protocol)
-                                     
-                                     :else :exact-name)
+
+                                     (= :git protocol)
+                                     protocol
+
+                                     :else
+                                     :exact-name)
      :content-resolvers (or maybe-resolvers [{:type :whole-file}])}))
 
 (defn get-resource-match-async
