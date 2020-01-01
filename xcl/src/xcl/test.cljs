@@ -35,11 +35,13 @@
   (path-join
    (.cwd js/process) ".."))
 
-(defn get-resource-path
+(defn get-local-resource-path
   [file-name]
-  (path-join
-   $XCL-SERVER-RESOURCE-BASE-DIR
-   file-name))
+  (if (clojure.string/starts-with? file-name "/")
+    file-name
+    (path-join
+     $XCL-SERVER-RESOURCE-BASE-DIR
+     file-name)))
 
 (defn run-all-tests! []
   (when-let [test-func (first @all-tests)]
@@ -141,7 +143,7 @@
   (defn load-from-directive [directive]
     (let [spec (sc/parse-link directive)
           full-content (slurp
-                        (get-resource-path
+                        (get-local-resource-path
                          (:resource-resolver-path spec)))]
       (yellow
        (str "*** SPEC ***\n"
