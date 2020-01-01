@@ -43,6 +43,20 @@
      $XCL-SERVER-RESOURCE-BASE-DIR
      file-name)))
 
+(defn load-local-resource [spec on-loaded]
+  (cond (= :git (:resource-resolver-method spec))
+        (let [gra (git/parse-git-protocol-blob-path (:link spec))]
+          (git/resolve-git-resource-address
+           gra
+           on-loaded))
+        
+        :else ;; assume filesystem based loader
+        (-> spec
+            (:resource-resolver-path)
+            (get-local-resource-path)
+            (slurp)
+            (on-loaded))))
+
 (defn run-all-tests! []
   (when-let [test-func (first @all-tests)]
     (swap! all-tests rest)
