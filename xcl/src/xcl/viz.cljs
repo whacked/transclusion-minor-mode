@@ -403,6 +403,21 @@
          "5 SOME LINE"
          "100lines" :exact-name
          :line-range {:beg 5 :end 5}]
+        ["line in file, dot relative path"
+         "file:./big.org::1"
+         "another fake file"
+         "big.org" :exact-name
+         :line-range {:beg 1 :end 1}]
+        ["line in file, relative path traversal"
+         "file:somewhere/../big.org::1"
+         "another fake file"
+         "big.org" :exact-name
+         :line-range {:beg 1 :end 1}]
+        ["line in file, absolute path"
+         "file:/tmp/some-big.org::1"
+         "fake file in temp dir"
+         "/tmp/some-big.org" :exact-name
+         :line-range {:beg 1 :end 1}]
         ["line range"
          "file:tiny.org::2-3"
          "* decoy 1\n* something third line"

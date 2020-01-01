@@ -29,6 +29,10 @@ north star mars car
                    (interpose "\n")
                    (apply str))
    "big.org" "another fake file"
+   "somewhere/../big.org" "another fake file"
+   "./big.org" "another fake file"
+   "/tmp/some-big.org" "fake file in temp dir"
+   
    "fake.org" "some fake information\nto throw you off"
    "dummy.org" (loader/slurp-file "xcl/public/dummy.org")
    "_READ.ME.org" "decoy org file"

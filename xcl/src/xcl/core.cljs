@@ -237,7 +237,11 @@
      :resource-resolver-path (if (@$in-memory-buffer-types
                                   protocol)
                                nil
-                               (js/decodeURI path))
+                               (-> path
+                                   (js/decodeURI)
+                                   (url)
+                                   (:path)
+                                   (str)))
      :resource-resolver-method (cond (re-find #"\*" path)
                                      :glob-name
 
