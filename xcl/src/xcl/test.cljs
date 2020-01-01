@@ -69,6 +69,42 @@
     (js/process.exit)
     (run-all-tests!)))
 
+(defn fs-abspath-and-relpath-file-loader []
+  (let [abspath-spec (sc/parse-link
+                      ;; this works under the assumption that the test process is being invoked via
+                      ;; `node build/test.js`; at run-time, it still resolves to starting from the
+                      ;; root directory of the `transclusion-minor-mode` repo
+                      "file:xcl/../xcl/README.org::*example usage")
+        resolved-abspath-content
+        (->> (:resource-resolver-path abspath-spec)
+             (get-local-resource-path)
+             (slurp)
+             (ci/resolve-content abspath-spec))
+
+        relpath-spec (sc/parse-link
+                      (str "file:"
+                           (js/process.cwd)
+                           "/README.org::*example usage"))
+
+        resolved-relpath-content
+        (->> (:resource-resolver-path relpath-spec)
+             (get-local-resource-path)
+             (slurp)
+             (ci/resolve-content relpath-spec))]
+    
+    (if (and (< 0 (count resolved-abspath-content))
+             (clojure.string/starts-with? resolved-abspath-content
+                                          "* example usage")
+             (= resolved-abspath-content resolved-relpath-content))
+      (green "[FS] abspath / relpath file loader test OK")
+      (red (str "[FS] abspath / relpath test FAIL:\n"
+                "- ABSPATH:\n"
+                resolved-abspath-content "\n"
+                "- RELPATH:\n"
+                resolved-relpath-content "\n")))
+
+    (signal-test-done!)))
+
 (defn zotero-test-pdf []
   (zotero/load-text-from-file
    "Trace-based just-in-time*.pdf"
@@ -230,6 +266,8 @@
   (add-node-test! epub-loader-test)
   
   (add-node-test! git-test-load-content)
+  
+  (add-node-test! fs-abspath-and-relpath-file-loader)
   
   (run-all-tests!))
 
