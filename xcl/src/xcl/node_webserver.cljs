@@ -148,6 +148,20 @@
                                      (fn [err text]
                                        (resolve-content-and-return! text))))))
 
+                    ("git")
+                    (fn [directive callback]
+                      (let [resource-spec (sc/parse-link directive)
+                            gra (-> resource-spec
+                                    (:link)
+                                    (git/parse-git-protocol-blob-path))]
+                        (git/resolve-git-resource-address
+                         gra
+                         (fn [full-content]
+                           (some->> (ci/resolve-content resource-spec full-content)
+                                    (assoc resource-spec :text)
+                                    (clj->js)
+                                    (callback nil))))))
+                    
                     ("calibre" "zotero")
                     (fn [directive callback]
                       (let [resource-spec (sc/parse-link directive)]
