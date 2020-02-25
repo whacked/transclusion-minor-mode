@@ -44,13 +44,15 @@
                (filter path-exists?)
                (first))))
 
-(when-not $calibre-library-directory
-  (js/console.error "ERROR: could not detect calibre library path"))
-
-(def $calibre-db-path
-  (path-join $calibre-library-directory "metadata.db"))
-
-(def $calibre-db (new sqlite3/Database $calibre-db-path))
+(if $calibre-library-directory
+  (do
+    (def $calibre-db-path
+      (path-join $calibre-library-directory "metadata.db"))
+    (def $calibre-db (new sqlite3/Database $calibre-db-path)))
+  (do
+    (js/console.error "ERROR: could not detect calibre library path")
+    (def $calibre-db-path nil)
+    (def $calibre-db nil)))
 
 (defn calibre-get-book-filepath
   [book-dir book-name book-format]
