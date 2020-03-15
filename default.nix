@@ -37,6 +37,7 @@ stdenv.mkDerivation rec {
             git submodule init && git submodule update
         fi
 
+        export PATH=$PATH:$(npm bin)
         cat default.nix | grep '[a]lias'
     '';
 }
