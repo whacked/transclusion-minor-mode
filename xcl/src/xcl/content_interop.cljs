@@ -130,17 +130,29 @@
                               (:bound spec)
                               lower-content (clojure.string/lower-case
                                              content)
-                              maybe-begin-index (clojure.string/index-of
-                                                 lower-content
-                                                 (clojure.string/lower-case
-                                                  token-beg))]
+
+                              re-patternize (fn [token-string]
+                                              (->> (clojure.string/split token-string #"\s+")
+                                                   (interpose "\\s+")
+                                                   (apply str)
+                                                   (re-pattern)))
+
+                              maybe-begin-index (some-> token-beg
+                                                        (clojure.string/lower-case)
+                                                        (re-patternize)
+                                                        (re-pos lower-content)
+                                                        (keys)
+                                                        (first))]
                           (when maybe-begin-index
                             (when-let [maybe-end-index
-                                       (clojure.string/index-of
-                                        lower-content
-                                        (clojure.string/lower-case token-end)
-                                        (+ maybe-begin-index
-                                           (count token-beg)))]
+                                       (some-> token-end
+                                               (clojure.string/lower-case)
+                                               (re-patternize)
+                                               (re-pos (subs lower-content maybe-begin-index))
+                                               (keys)
+                                               (first)
+                                               (+ maybe-begin-index))
+                                       ]
                               (subs content
                                     maybe-begin-index
                                     (+ maybe-end-index (count token-end)))))))
