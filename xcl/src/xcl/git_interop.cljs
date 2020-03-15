@@ -106,7 +106,7 @@
                                     on-resolved
                                     & [on-failed]]
   {:pre [(instance? GitResourceAddress GRA)]}
-
+  
   (-> (.log git (clj->js (assoc $base-git-param
                                 :dir repo-dir)))
       (.then (fn [commits]
@@ -133,5 +133,5 @@
                        (load-repo-file-from-commit
                         repo-dir
                         path-in-repo
-                        commit-oid
+                        (:oid commit-clj-object)
                         on-resolved)))))))))
