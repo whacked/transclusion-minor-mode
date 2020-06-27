@@ -131,7 +131,6 @@
                             resolve-content-and-return!
                             (fn [text]
                               (some->> (ci/resolve-content resource-spec text)
-                                       (clojure.string/trim)
                                        (assoc resource-spec :text)
                                        (clj->js)
                                        (callback nil)))]
