@@ -559,7 +559,7 @@
                    :token-end "walk long enough"}}]]
         ["grab text from pdf"
          "xcl:tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
-         "Monkey observes that it has reached an inner loop header that al-ready has a compiled trace, so TraceMonkey attempts"
+         "Monkey observes that it has reached an inner loop header that al-\nready has a compiled trace, so TraceMonkey attempts"
          "tracemonkey.pdf" :exact-name
          nil
          [{:type :page-number

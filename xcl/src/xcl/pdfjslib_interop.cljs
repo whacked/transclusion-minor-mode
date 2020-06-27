@@ -29,7 +29,7 @@
   ;; fail with errors like "Tb(...).ed is not a function" turned on.
   (let [getDocument (aget @pdfjsLib "getDocument")]
     (js-invoke
-     (getDocument rel-uri)
+     (aget (getDocument rel-uri) "promise")
      "then"
      (fn [pdf]
        (let [count-promises (clj->js [])
@@ -68,7 +68,7 @@
      (let [rel-uri (str "file:///" file-path)
            getDocument (aget @pdfjsLib "getDocument")]
        (js-invoke
-        (getDocument rel-uri)
+        (aget (getDocument rel-uri) "promise")
         "then"
         (fn [pdf]
           (println "GOT PDF!" rel-uri)

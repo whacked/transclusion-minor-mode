@@ -7,7 +7,7 @@
              :refer [pdfjslib-load-text
                      set-pdfjslib!]
              :as pdfi]
-            ["pdfjs-dist" :as pdfjsLib]
+            ["pdfjs-dist/es5/build/pdf" :as pdfjsLib]
             [xcl.node-epub-interop :as epubi]
             ["fs" :as fs]
             ["path" :as path]
