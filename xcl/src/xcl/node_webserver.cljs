@@ -64,12 +64,10 @@
                       (str "page: " page "\n"))
                     (count text)
                     " bytes\n\n"))
-              (callback
-               nil
-               (->> (if text (clojure.string/trim text) "")
-                    (assoc spec :text)
-                    (clj->js)
-                    (callback nil))))
+              (->> (if text (clojure.string/trim text) "")
+                   (assoc spec :text)
+                   (clj->js)
+                   (callback nil)))
             (fn [err]
               (js/console.error err))))
 
