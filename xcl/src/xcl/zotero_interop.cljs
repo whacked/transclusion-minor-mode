@@ -1,6 +1,7 @@
 (ns xcl.zotero-interop
   (:require ["sqlite3" :as sqlite3]
             ["fs" :as fs]
+            ["ini" :as ini]
             [xcl.common :refer
              [get-file-extension]]
             [xcl.node-common :refer
@@ -12,7 +13,7 @@
             [xcl.dom-processing :as domp]
             [xcl.pdfjslib-interop :as pdfjslib]))
 
-(def $zotero-library-directory
+(defn detect-zotoro-profile-base-directory []
   (let [process-user (aget js/process "env" "USER")]
     (loop [remain
            [(aget js/process "env" "USERPROFILE") ;; windows
@@ -28,14 +29,49 @@
           (recur
            (rest remain)
            (when-let [candidate (first remain)]
-             (path-join candidate "Zotero"))))))))
+             (path-join candidate ".zotero/zotero"))))))))
+
+(def $zotero-library-directory
+  (when-let [zotero-profile-base-directory
+             (detect-zotoro-profile-base-directory)]
+    (let [profile-ini-js (->> (.readFileSync
+                               fs
+                               (path-join
+                                zotero-profile-base-directory
+                                "profiles.ini")
+                               "utf-8")
+                              (.parse ini))
+          profile-config (js->clj profile-ini-js :keywordize-keys true)]
+      (when-let [profile-dir
+                 (get-in profile-config [:Profile0 :Path])]
+        (let [profile-dir-fullpath
+              (path-join zotero-profile-base-directory
+                         profile-dir)]
+          (when (path-exists? profile-dir-fullpath)
+            (let [maybe-user-js-path
+                  (path-join profile-dir-fullpath "user.js")]
+              (or (when (path-exists? maybe-user-js-path)
+                    (some->> (.readFileSync fs maybe-user-js-path "utf-8")
+                             (clojure.string/split-lines)
+                             (remove empty?)
+                             (filter (fn [line]
+                                       (re-find #"extensions.zotero.dataDir" line)))
+                             (map (fn [line]
+                                    (some-> line
+                                            (clojure.string/split #",")
+                                            (last)
+                                            (clojure.string/split #"\"")
+                                            (second))))
+                             (first)))
+                  (path-join profile-dir-fullpath "storage")))))))))
 
 (def $zotero-db-path
   (some-> $zotero-library-directory
           (path-join "zotero.sqlite")))
 
-(when-not $zotero-library-directory
-  (js/console.error "ERROR: could not detect zotero library path"))
+(if-not $zotero-library-directory
+  (js/console.error "ERROR: could not detect zotero library path")
+  (js/console.info (str "REGISTERING LOADER FOR zotero; storage detected at " $zotero-db-path)))
 
 (def $zotero-db
   (when $zotero-db-path
