@@ -17,26 +17,21 @@
     (path-join "/Users" process-user)]))
 
 (def $calibre-library-directory
-  (or (if-let [global-py (some->> $user-profile-data-candidates
-                                  (filter identity)
-                                  (map
-                                   (fn [base-dir]
-                                     (path-join
-                                      base-dir "calibre" "global.py")))
-                                  (filter path-exists?)
-                                  (first))]
-        (some->> (.readFileSync fs global-py "utf-8")
-                 (clojure.string/split-lines)
-                 (filter (fn [line]
-                           (re-find #"^\s*library_path" line)))
-                 (map (fn [match]
-                        (some-> (clojure.string/replace
-                                 match
-                                 #"\s*(library_path)\s*=.*?['\"]([^'\"]+)['\"]\s*"
-                                 "$2")
-                                (clojure.string/replace #"\\+" "/"))))
-                 
-                 (first)))
+  (or (if-let [global-py-json
+               (some->> $user-profile-data-candidates
+                        (filter identity)
+                        (map
+                         (fn [base-dir]
+                           (path-join
+                            base-dir
+                            ".config"
+                            "calibre"
+                            "global.py.json")))
+                        (filter path-exists?)
+                        (first))]
+        (some-> (.readFileSync fs global-py-json "utf-8")
+                (js/JSON.parse)
+                (aget "library_path")))
       (some->> $user-profile-data-candidates
                (filter identity)
                (map (fn [base-dir]
@@ -48,7 +43,8 @@
   (do
     (def $calibre-db-path
       (path-join $calibre-library-directory "metadata.db"))
-    (def $calibre-db (new sqlite3/Database $calibre-db-path)))
+    (def $calibre-db (new sqlite3/Database $calibre-db-path))
+    (js/console.info (str "REGISTERING LOADER FOR calibre; storage detected at " $calibre-db-path)))
   (do
     (js/console.error "ERROR: could not detect calibre library path")
     (def $calibre-db-path nil)
@@ -77,9 +73,10 @@
          1 ;; limit
          (fn [err js-rows]
            (when err (js/console.error err))
-           (when-let [rows (js->clj js-rows :keywordize-keys true)]
-             (let [book (first rows)
-                   book-filepath (calibre-get-book-filepath
+           (when-let [book (-> js-rows
+                               (js->clj :keywordize-keys true)
+                               (first))]
+             (let [book-filepath (calibre-get-book-filepath
                                   (:path book)
                                   (:name book)
                                   (:format book))]
