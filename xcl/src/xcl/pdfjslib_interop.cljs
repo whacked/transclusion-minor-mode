@@ -7,14 +7,45 @@
   (reset! pdfjsLib lib-object))
 
 (defn pdf-page-text-items-to-string [pdf-text]
-  (-> (aget pdf-text "items")
-      (.map (fn [s]
-              (-> (aget s "str")
-                  (.replace "@" "@@"))))
-      (.join "@n")
-      (clojure.string/replace #"-@n" "-")
-      (clojure.string/replace #"@n" "\n")
-      (clojure.string/replace #"@@" "@")))
+  (loop [items (array-seq (aget pdf-text "items"))
+         last-x-end -1
+         last-y-beg -1
+         average-char-width 0
+         out []]
+    (if (empty? items)
+      (apply str out)
+      (let [item (first items)
+            bbox-width (aget item "width")
+            xfm-matrix (aget item "transform")
+            item-translate-x (aget xfm-matrix 4)
+            item-translate-y (aget xfm-matrix 5)
+            x-offset-from-previous (- item-translate-x
+                                      last-x-end)
+            item-text (aget item "str")
+            cur-item-count (count out)]
+
+        (recur (rest items)
+               (+ bbox-width item-translate-x)
+               item-translate-y
+               (/ bbox-width (count item-text))
+               (if (= item-translate-y last-y-beg)
+                   ;; same line
+                 
+                   (cond (= cur-item-count 0)
+                         ;; first item
+                         (conj out item-text)
+
+                         (< x-offset-from-previous
+                            (/ average-char-width 4))
+                         ;; assume same word
+                         (update out (dec cur-item-count) str item-text)
+
+                         :else
+                         (conj out " " item-text))
+                   ;; (conj out item-text)
+
+                   ;; new line
+                   (conj out "\n" item-text)))))))
 
 (defn pdfjslib-load-text
   [rel-uri
