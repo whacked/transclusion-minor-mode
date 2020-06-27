@@ -126,7 +126,7 @@
    [:org-heading
     (make-named-matcher #"^\*\s*([^\*].+)$" [:heading] [url-decode])]
    [:token-bound
-    (make-named-matcher #"^(\S.+)\.\.\.(\S.+)$" [:token-beg :token-end])]
+    (make-named-matcher #"^(\S.*)\.\.\.(\S.*)$" [:token-beg :token-end])]
    ])
 
 (def url-style-constrictor-matchers
@@ -148,7 +148,7 @@
             (select-keys match [:beg :end])))))]
    
    [:token-bound
-    (make-named-matcher #"s=(\S.+)\.\.\.(\S.+)"
+    (make-named-matcher #"s=(\S.*)\.\.\.(\S.*)"
                         [:token-beg :token-end])]
    [:line-with-match
     (make-named-matcher #"line=(\S+)"
