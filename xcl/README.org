@@ -95,16 +95,14 @@
    #+END_SRC
 
    this will watch + recompile the =node-test= profile, which builds a
-   file that runs nodejs examples. To run it in a watch loop I am
-   using [[https://github.com/joh/when-changed][when-changed]]. On Windows, it can be run from a MINGW shell
-   with
+   file that runs nodejs examples. In another terminal, run
 
    #+BEGIN_SRC sh :eval never
-   when-changed build/test.js $(which node) build/test.js
+   node build/test.js
    #+END_SRC
 
-   note that because the resource loaders are async, the process is
-   made to exit using an atom to count the remaining tests.
+   which should auto-rerun when the =shadow-cljs watch= process
+   recompiles the tests
    
 ** node REPL setup + cider
 
@@ -131,6 +129,20 @@
 
     =M-x cider-connect-cljs=
 
+** webserver + reload with watchexec
+
+   in one terminal
+
+   #+BEGIN_SRC sh
+   shadow-cljs watch node-webserver
+   #+END_SRC
+
+   in another terminal
+
+   #+BEGIN_SRC sh
+   watchexec --restart --no-ignore --watch ./build node build/webserver.js
+   #+END_SRC
+   
 * building for node.js
 
   #+BEGIN_SRC sh :eval never
