@@ -8,25 +8,12 @@
             [xcl.external :as ext]
             [xcl.calibre-interop :as calibre]
             [xcl.zotero-interop :as zotero]
-            [xcl.git-interop :as git]))
+            [xcl.git-interop :as git]
+            [xcl.console
+             :refer [log-red log-green log-yellow
+                     log-blue log-magenta log-cyan]]))
 
 (def all-tests (atom []))
-
-(defn nocolor [& ss]
-  (str (apply str ss) "\033[0m"))
-
-(defn red [s]
-  (js/console.log (nocolor "\033[31m" s)))
-(defn green [s]
-  (js/console.log (nocolor "\033[32m" s)))
-(defn yellow [s]
-  (js/console.log (nocolor "\033[33m" s)))
-(defn blue [s]
-  (js/console.log (nocolor "\033[34m" s)))
-(defn magenta [s]
-  (js/console.log (nocolor "\033[36m" s)))
-(defn cyan [s]
-  (js/console.log (nocolor "\033[36m" s)))
 
 (defn slurp [path]
   (.readFileSync fs path "utf-8"))
@@ -63,7 +50,7 @@
     (test-func)))
 
 (defn signal-test-done! []
-  (magenta
+  (log-magenta
    (str (count @all-tests) " tests remaining..."))
   (if (<= (count @all-tests) 0)
     (js/process.exit)
@@ -96,8 +83,8 @@
              (clojure.string/starts-with? resolved-abspath-content
                                           "* example usage")
              (= resolved-abspath-content resolved-relpath-content))
-      (green "[FS] abspath / relpath file loader test OK")
-      (red (str "[FS] abspath / relpath test FAIL:\n"
+      (log-green "[FS] abspath / relpath file loader test OK")
+      (log-red (str "[FS] abspath / relpath test FAIL:\n"
                 "- ABSPATH:\n"
                 resolved-abspath-content "\n"
                 "- RELPATH:\n"
@@ -118,9 +105,9 @@
      (fn [text]
        (if (= expected-content text)
          (do
-           (green "[GIT] load content OK"))
+           (log-green "[GIT] load content OK"))
          (do
-           (red "[GIT] load content fail")
+           (log-red "[GIT] load content fail")
            (println "=== EXPECTED ===" expected-content)
            (println "=== RECEIVED ===" text)))
        (signal-test-done!)))))
@@ -137,9 +124,9 @@
          (if (clojure.string/starts-with?
               resolved-content
               "* example usage")
-           (green "[GIT] resolved content loader OK")
+           (log-green "[GIT] resolved content loader OK")
            (do
-             (red "[GIT] resolved content loader FAIL")
+             (log-red "[GIT] resolved content loader FAIL")
              (println "=== RECEIVED  ===" resolved-content)))
          (signal-test-done!))))))
 
@@ -148,7 +135,7 @@
    "Trace-based just-in-time*.pdf"
    "Monkey observes that so TraceMonkey attempts"
    (fn [page text]
-     (green "[zotero test pdf OK]")
+     (log-green "[zotero test pdf OK]")
      (js/console.info
       (str "    page: " page "\n"
            "    "
@@ -165,7 +152,7 @@
    "*Example Domain*.html"
    "examples without prior coordination or asking"
    (fn [text]
-     (green "[zotero test html OK]")
+     (log-green "[zotero test html OK]")
      (js/console.info
       (str "    "
            text
@@ -180,7 +167,7 @@
    "QuIcK sTaRt*.epub"
    "Calibre display possible matches for entered"
    (fn [text]
-     (green "[calibre OK]")
+     (log-green "[calibre OK]")
      (js/console.log
       (str "    calibre epub: " (count text) " bytes\n\n"))
      (signal-test-done!))))
@@ -192,7 +179,7 @@
     (external-loader
      resource-spec
      (fn [text]
-       (green "[PDF OK]")
+       (log-green "[PDF OK]")
        (js/console.log (str "    " (pr-str resource-spec) "\n"
                             "    " (-> text
                                        (clojure.string/trim)
@@ -207,7 +194,7 @@
     (external-loader
      resource-spec
      (fn [text]
-       (green "[EPUB OK]")
+       (log-green "[EPUB OK]")
        (js/console.log (str "    " (pr-str resource-spec) "\n"
                             "    " (-> text
                                        (clojure.string/trim)
@@ -216,9 +203,9 @@
        (signal-test-done!)))))
 
 (defn add-node-test! [test-func]
-  (cyan ">>>>>>>>> adding a test!")
+  (log-cyan ">>>>>>>>> adding a test!")
   (swap! all-tests conj test-func)
-  (blue (str " ----- added a test; now " (count @all-tests))))
+  (log-blue (str " ----- added a test; now " (count @all-tests))))
 
 (defn -main []
   (js/console.log
@@ -233,16 +220,16 @@
           full-content (slurp
                         (get-local-resource-path
                          (:resource-resolver-path spec)))]
-      (yellow
+      (log-yellow
        (str "*** SPEC ***\n"
             (:resource-resolver-path spec) "\n"
             (pr-str spec)))
-      (green
+      (log-green
        (str "\n"
             "========================================"))
       (println (ci/resolve-content
                 spec full-content))
-      (green "----------------------------------------")))
+      (log-green "----------------------------------------")))
   
   (add-node-test!
    (fn default-file []

@@ -22,6 +22,7 @@
    [xcl.calibre-interop :as calibre]
    [xcl.zotero-interop :as zotero]
    [xcl.git-interop :as git]))
+   [xcl.console :as console]
 
 (def $JSONRPC-PORT
   (let [config-file-path (path-join
