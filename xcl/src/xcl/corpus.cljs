@@ -35,6 +35,7 @@ north star mars car
    
    "fake.org" "some fake information\nto throw you off"
    "dummy.org" (loader/slurp-file "xcl/public/dummy.org")
+   "dummy: the clone.org" (loader/slurp-file "xcl/public/dummy.org")
    "_READ.ME.org" "decoy org file"
    "README.org" (loader/slurp-file "README.org")
    "xcl-test-1.org" (->> ["* blah blah"

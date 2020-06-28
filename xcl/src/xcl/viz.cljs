@@ -338,8 +338,12 @@
                 "file:test-note-file.json" "test-note-file.json"]
                ["exact match"
                 "grep:ZZ+you" "dummy.org"]
+               ["exact match"
+                "file:dummy: the clone.org" "dummy: the clone.org"]
                ["glob file name"
                 "file:d*y.org" "dummy.org"]
+               ["glob file name"
+                "file:dummy: the clone*" "dummy: the clone.org"]
                ["fuzzy find file by content +"
                 "grep:ZZ+you" "dummy.org"]
                ["fake protocol"
@@ -466,9 +470,9 @@
          "dummy.org" :exact-name
          :org-heading {:heading "famous script"}]
         ["native org: heading with url-encoded utf-8"
-         "file:dummy.org::*random%20extra%20content%20%E4%B8%96%E7%95%8C"
+         "file:dummy: the clone.org::*random%20extra%20content%20%E4%B8%96%E7%95%8C"
          "* random extra content 世界                                     :tricky:trap:\n\n  Support attributes like ~SCHEDULED:~."
-         "dummy.org" :exact-name
+         "dummy: the clone.org" :exact-name
          :org-heading {:heading "random extra content 世界"}]
         ["native org: heading with as-is utf-8"
          "file:dummy.org::*random extra%20content 世界"

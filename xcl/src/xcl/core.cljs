@@ -26,8 +26,8 @@
 
 (def link-matcher
   (-> (str
-       "([^:?]+)"
-       "(::|[?])?((.+))?")
+       "((?:(?!::)(?!\\?).)+)"
+       "(::|[?])?(.+)?")
       (re-pattern)))
 
 (defn make-named-matcher [pattern keys & [types]]
@@ -182,6 +182,28 @@
         :else
         nil))
 
+(defn clean-path
+  "
+  ./part1/part2         -->  part1/part2
+  ../dir1/dir2/../dir3  -->  dir3
+  "
+  [path]
+  (loop [remain (-> path
+                    (clojure.string/replace
+                     #"^\./+" "")
+                    (clojure.string/split
+                     #"/+"))
+         out []]
+    (if (empty? remain)
+      (clojure.string/join "/" out)
+      (let [part (first remain)]
+        (recur (rest remain)
+               (if (and (= part "..")
+                        (not (empty? out ))
+                        (not= ".." (last out)))
+                 (vec (butlast out))
+                 (conj out part)))))))
+
 (defn parse-link [link]
   (let [protocol-matcher
         (-> (str
@@ -239,17 +261,16 @@
                                   protocol)
                                nil
                                (-> path
+                                   (clean-path)
                                    (js/decodeURI)
-                                   (url)
-                                   (:path)
                                    (str)))
-     :resource-resolver-method (cond (re-find #"\*" path)
-                                     :glob-name
-
-                                     (get
+     :resource-resolver-method (cond (get
                                       @$known-resource-resolver-mapping
                                       protocol)
                                      (@$known-resource-resolver-mapping protocol)
+
+                                     (re-find #"\*" path)
+                                     :glob-name
 
                                      (= :git protocol)
                                      protocol
