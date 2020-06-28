@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cors": "^2.8.5",
     "create-react-class": "^15.6.3",
     "epub": "^1.2.0",
     "express": "^4.17.1",

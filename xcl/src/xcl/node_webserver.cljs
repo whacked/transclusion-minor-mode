@@ -1,6 +1,7 @@
 (ns xcl.node-webserver
   (:require
    ["express" :as express]
+   ["cors" :as cors]
    ["body-parser" :as body-parser]
    ["multitransport-jsonrpc" :as jsonrpc]
    [xcl.common :refer [get-file-extension]]
@@ -200,6 +201,7 @@
                                "server"
                                "middleware")]
     (doto app
+      (.use (cors))
       (.use (js-invoke body-parser "json"))
       (.use (env/get :jsonrpc-endpoint)
             (aget (JrpcServer.
