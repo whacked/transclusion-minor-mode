@@ -7,6 +7,7 @@
             [xcl.content-interop :as ci]
             [xcl.external-js-content :as ext-js]
             [xcl.external :as ext]
+            [ajax.core :refer [ajax-request]]
             [xcl.env :as env]))
 
 (def $JSONRPC-SERVER-ENDPOINT
@@ -14,6 +15,9 @@
 
 (swap! sc/$known-protocols
        conj :fakeout)
+
+(swap! sc/$known-protocols
+       conj :calibre :zotero)
 
 (defn get-static-content
   [search-path]
@@ -806,6 +810,87 @@ aye aye aye??-2@??-1@"
          (vector :div
                  [:h2 "transclusion test"]))))
 
+
+(defn render-resolver-playground-view! [view-state]
+  [(fn []
+     [:div
+      [:h2 "playground"]
+      [:div
+       [:select
+        {:style {:width "60%"}
+         :on-change
+         (fn [evt]
+           (let [value (aget evt "target" "value")]
+             (when-not (empty? value)
+               (swap! view-state assoc-in
+                      [:resolver-input] value))))}
+        [:option
+         {:value nil}
+         "-- choose an example --"]
+        (->> ["file:README.org::7-20"
+              "file:README.org::this will watch...recompiles the tests"
+              (str "git:"
+                   (env/get :user.dir)
+                   "/../blob/cdc2252c9740526f7e990855795c296a24bb4991/README.org::There is 1 goal...link for transclusion.")
+              ]
+
+             (map (fn [val]
+                    ^{:key (str "option-" val)}
+                    [:option {:value val} val])))]]
+      [:div
+       [:input
+        {:type "text"
+         :style {:width "50%"}
+         :value (get-in @view-state [:resolver-input])
+         :placeholder "enter a content resolver address or pick an example"
+         :on-change (fn [evt]
+                      (swap! view-state assoc-in
+                             [:resolver-input]
+                             (aget evt "target" "value")))}]
+       [:button
+        {:type "button"
+         :on-click (fn []
+                     (let [link (get-in @view-state [:resolver-input])]
+                       (when-not (empty? link)
+                         (let [resolved-link (sc/parse-link link)]
+                           (swap! view-state assoc-in
+                                  [:resolved-link] resolved-link)
+                           (ajax-request
+                            {:uri $JSONRPC-SERVER-ENDPOINT
+                             :method :post
+                             :params {:id 1
+                                      :method "get-text"
+                                      ;; :params {:protocol "file" :directive "README.org::5"}
+                                      :params (merge
+                                               {:directive (:link resolved-link)}
+                                               resolved-link)
+                                      }
+                             :format (ajax.core/json-request-format)
+                             :response-format (ajax.core/json-response-format
+                                               {:keywords? true})
+                             :handler (fn [[ok jsonrpc-response]]
+                                        (when ok
+                                          (swap! view-state assoc-in
+                                                 [:resolver-result] (:result jsonrpc-response))))})))))}
+        "submit"]]
+      (let [resolved-link (get-in @view-state [:resolved-link])
+            resolver-result (get-in @view-state [:resolver-result])]
+        [:div
+         [:div
+          (when resolved-link
+            (render-map resolved-link))]
+         [:pre
+          {:style {:border "1px solid #CCC"
+                   :border-radius "0.5em"
+                   :width "60%"
+                   :min-height "2em"
+                   :white-space "pre-wrap"
+                   :color (if resolver-result
+                            "#333"
+                            "#CCC")}}
+          (or (:text resolver-result)
+              "resolver result will output here...")]])])])
+
 (defn main []
   (let [view-state (r/atom {:hide-passing? false})]
     (r/render
@@ -816,6 +901,7 @@ aye aye aye??-2@??-1@"
          {:type "checkbox"
           :on-change #(swap! view-state update :hide-passing? not)}]
         "hide passing?"]]
+      [:div (render-resolver-playground-view! view-state)]
       [:div (render-resource-resolver-test-view! view-state)]
       [:div (render-link-test-view! view-state)]
       [:div (render-transclusion-test-view! view-state)]
