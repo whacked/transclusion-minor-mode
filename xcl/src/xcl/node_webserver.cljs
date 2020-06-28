@@ -35,10 +35,7 @@
             (str "*" (:resource-resolver-path spec) "*.epub")
             spec
             (fn [text]
-              (js/console.log
-               (str "calibre epub: "
-                    (count text)
-                    " bytes\n\n"))
+              (js/console.log (str "calibre epub: " (count text) " bytes\n\n"))
               (->> text
                    (clojure.string/trim)
                    (assoc spec :text)
@@ -70,8 +67,8 @@
                             (:resource-resolver-path
                              spec))]
              (when-let [external-loader (@ext/$ExternalLoaders extension)]
-               (println "loading for extension " extension
-                        "\n" spec)
+               (println "!!! loading for extension " extension
+                        "\n" spec " --using--> " external-loader)
                (external-loader
                 spec
                 (fn [text]
