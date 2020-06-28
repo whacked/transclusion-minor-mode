@@ -48,22 +48,24 @@
               (path-join zotero-profile-base-directory
                          profile-dir)]
           (when (path-exists? profile-dir-fullpath)
-            (let [maybe-user-js-path
-                  (path-join profile-dir-fullpath "user.js")]
-              (or (when (path-exists? maybe-user-js-path)
-                    (some->> (.readFileSync fs maybe-user-js-path "utf-8")
-                             (clojure.string/split-lines)
-                             (remove empty?)
-                             (filter (fn [line]
-                                       (re-find #"extensions.zotero.dataDir" line)))
-                             (map (fn [line]
-                                    (some-> line
-                                            (clojure.string/split #",")
-                                            (last)
-                                            (clojure.string/split #"\"")
-                                            (second))))
-                             (first)))
-                  (path-join profile-dir-fullpath "storage")))))))))
+            ;; note that if the user creates an override in user.js,
+            ;; it should get read by Zotero on open, and written back
+            ;; into prefs.js, so we will use that as ground truth
+            (let [maybe-prefs-js-path
+                  (path-join profile-dir-fullpath "prefs.js")]
+              (when (path-exists? maybe-prefs-js-path)
+                (some->> (.readFileSync fs maybe-prefs-js-path "utf-8")
+                         (clojure.string/split-lines)
+                         (remove empty?)
+                         (filter (fn [line]
+                                   (re-find #"extensions.zotero.dataDir" line)))
+                         (map (fn [line]
+                                (some-> line
+                                        (clojure.string/split #",")
+                                        (last)
+                                        (clojure.string/split #"\"")
+                                        (second))))
+                         (first))))))))))
 
 (def $zotero-db-path
   (some-> $zotero-library-directory
