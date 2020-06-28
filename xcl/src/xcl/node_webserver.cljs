@@ -82,9 +82,15 @@
                            (callback nil)))))))}))
 
 (defn load-by-resource-resolver [spec callback]
-  (when-let [loader (@$resource-resolver-loader-mapping
-                     (:resource-resolver-method spec))]
-    (loader spec callback)))
+  (if-let [loader (@$resource-resolver-loader-mapping
+                   (:resource-resolver-method spec))]
+    (loader spec callback)
+    (do
+      (js/console.warn (console/red "FAILED TO LOAD RESOLVER FOR "
+                                    (str spec))
+                       " available resolvers:")
+      (doseq [key (keys @$resource-resolver-loader-mapping)]
+        (js/console.warn (str "- " key))))))
 
 (defn open-file-natively [file-path]
   (let [open-command (str
@@ -133,11 +139,16 @@
                            resource-spec
                            resolve-content-and-return!)
 
-                          (.readFile fs
-                                     resolved-resource-path
-                                     "utf-8"
-                                     (fn [err text]
-                                       (resolve-content-and-return! text))))))
+                          (if-not (path-exists? resolved-resource-path)
+                            ;; error response structure is not standardized
+                            (callback {:status "error"
+                                       :message (str "could not retrieve " resolved-resource-path)}
+                                      nil)
+                            (.readFile fs
+                                       resolved-resource-path
+                                       "utf-8"
+                                       (fn [err text]
+                                         (resolve-content-and-return! text)))))))
 
                     ("git")
                     (fn [directive callback]
@@ -151,6 +162,10 @@
                            (some->> (ci/resolve-content resource-spec full-content)
                                     (assoc resource-spec :text)
                                     (clj->js)
+                                    (callback nil)))
+                         (fn [_]
+                           (some->> {:status "failed"}
+                                    (clj->js)
                                     (callback nil))))))
                     
                     ("calibre" "zotero")
@@ -158,10 +173,14 @@
                       (let [resource-spec (sc/parse-link directive)]
                         (load-by-resource-resolver
                          resource-spec
-                         callback))))
-                  
+                         callback)))
+
+                    (fn [& _]
+                      (callback nil {:message (str "failed to process directive "
+                                                   directive)})))
+                 
                   directive callback)))
-   
+  
    :open (fn [args callback]
            (let [{:keys [protocol directive]}
                  (js->clj args :keywordize-keys true)
