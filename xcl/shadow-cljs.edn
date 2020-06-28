@@ -2,9 +2,9 @@
  ["src"]
 
  :dependencies
- [[cider/cider-nrepl "0.22.0-SNAPSHOT"]
   [reagent "0.8.1"]
   [com.cemerick/url "0.1.1"]]
+ [[cider/cider-nrepl "0.25.2"]
 
  ;; connect to the cljs repl from cider:
  ;; (shadow.cljs.devtools.api/nrepl-select :browser-sample)
