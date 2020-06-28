@@ -106,111 +106,145 @@
     (js-invoke
      child-process "exec" open-command)))
 
+(def $request-cache (atom {}))
+(defn cache-log [& ss]
+  (js/console.info
+   (apply str
+          (console/cyan "[CACHE-CONTROL] ")
+          ss)))
+
+(defn wrap-cached [req-mapping]
+  (->> req-mapping
+       (map (fn [[method-key original-handler]]
+              (cache-log "wrapping request cache for " method-key)
+              [method-key
+               (fn [args original-callback]
+                 (let [cache-key (pr-str args)
+                       maybe-cached-response (@$request-cache cache-key)]
+                   (cache-log "checking cache key: " cache-key)
+                   (if-not (empty? maybe-cached-response)
+                     (do
+                       (cache-log (console/green "returning cached response for " cache-key))
+                       (apply original-callback maybe-cached-response))
+                     (do
+                       (cache-log (console/red "running original handler for " cache-key))
+                       (original-handler
+                        args
+                        (fn wrapped-callback [err-response ok-response]
+                          (cache-log (console/yellow "caching response for " cache-key))
+                          (swap! $request-cache
+                                 assoc cache-key [err-response ok-response])
+                          (original-callback err-response ok-response)))))))]))
+       (into {})))
+
+;;add jsonrpc request cache wrapper fn
 (def $handler-mapping
-  {:echo (fn [args callback]
-           (println (js->clj args :keywordize-keys true))
-           (-> args (js->clj) (println))
-           (callback nil args))
-   
-   :get-text (fn [args callback]
-               (let [{:keys [protocol directive]}
-                     (js->clj args :keywordize-keys true)]
-                 ((case protocol
-
-                    ("file" "xcl")
-                    (fn [directive callback]
-                      ;; directive is e.g.
-                      ;; "xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
-                      (let [resource-spec (sc/parse-link directive)
-                            resolved-resource-path (:resource-resolver-path
-                                                    resource-spec)
-                            extension (get-file-extension
-                                       resolved-resource-path)
-                            resolve-content-and-return!
-                            (fn [text]
-                              (some->> (ci/resolve-content resource-spec text)
-                                       (assoc resource-spec :text)
-                                       (clj->js)
-                                       (callback nil)))]
-                        (println "loading for extension " extension
-                                 "\n" resource-spec)
-                        (if-let [external-loader (@ext/$ExternalLoaders extension)]
-                          (external-loader
-                           resource-spec
-                           resolve-content-and-return!)
-
-                          (if-not (path-exists? resolved-resource-path)
-                            ;; error response structure is not standardized
-                            (callback {:status "error"
-                                       :message (str "could not retrieve " resolved-resource-path)}
-                                      nil)
-                            (.readFile fs
-                                       resolved-resource-path
-                                       "utf-8"
-                                       (fn [err text]
-                                         (resolve-content-and-return! text)))))))
-
-                    ("git")
-                    (fn [directive callback]
-                      (let [resource-spec (sc/parse-link directive)
-                            gra (-> resource-spec
-                                    (:link)
-                                    (git/parse-git-protocol-blob-path))]
-                        (git/resolve-git-resource-address
-                         gra
-                         (fn [full-content]
-                           (some->> (ci/resolve-content resource-spec full-content)
-                                    (assoc resource-spec :text)
-                                    (clj->js)
-                                    (callback nil)))
-                         (fn [_]
-                           (some->> {:status "failed"}
-                                    (clj->js)
-                                    (callback nil))))))
-                    
-                    ("calibre" "zotero")
-                    (fn [directive callback]
-                      (let [resource-spec (sc/parse-link directive)]
-                        (load-by-resource-resolver
-                         resource-spec
-                         callback)))
-
-                    (fn [& _]
-                      (callback nil {:message (str "failed to process directive "
-                                                   directive)})))
-                 
-                  directive callback)))
+  (wrap-cached
+   {:echo (fn [args callback]
+            (println (js->clj args :keywordize-keys true))
+            (-> args (js->clj) (println))
+            (callback nil args))
   
-   :open (fn [args callback]
-           (let [{:keys [protocol directive]}
-                 (js->clj args :keywordize-keys true)
-                 resource-spec (sc/parse-link directive)
-                 resolved-path (:resource-resolver-path
-                                resource-spec)
-                 complete-request
-                 (fn [file-path]
-                   (->> {:status (or (when (path-exists? file-path)
-                                       (open-file-natively
-                                        file-path)
-                                       "ok")
-                                     "error")}
-                        (clj->js)
-                        (callback nil)))]
-             
-             (case protocol
-               "calibre"
-               (calibre/find-matching-epub
-                (str "*" resolved-path "*.epub")
-                complete-request)
-               
-               "zotero"
-               (zotero/find-matching-file
-                (str "*" resolved-path "*")
-                complete-request)
-               
-               ;; generic
-               (complete-request resolved-path))))
-   })
+    :get-text (fn [args callback]
+                (let [{:keys [protocol directive]}
+                      (js->clj args :keywordize-keys true)]
+                
+                  ((case protocol
+
+                     ("file" "xcl")
+                     (fn [directive callback]
+                       ;; directive is e.g.
+                       ;; "xcl:./public/tracemonkey.pdf?p=3&s=Monkey observes that...so TraceMonkey attempts"
+                       (let [resource-spec (sc/parse-link directive)
+                             resolved-resource-path (:resource-resolver-path
+                                                     resource-spec)
+                             extension (get-file-extension
+                                        resolved-resource-path)
+                             resolve-content-and-return!
+                             (fn [text]
+                               (some->> (ci/resolve-content resource-spec text)
+                                        (assoc resource-spec :text)
+                                        (clj->js)
+                                        (callback nil)))]
+                         (println "loading for extension " extension
+                                  "\n" resource-spec)
+                         (if-let [external-loader (@ext/$ExternalLoaders extension)]
+                           (external-loader
+                            resource-spec
+                            resolve-content-and-return!)
+
+                           (if-not (path-exists? resolved-resource-path)
+                             ;; error response structure is not standardized
+                             (callback {:status "error"
+                                        :message (str "could not retrieve " resolved-resource-path)}
+                                       nil)
+                             (.readFile fs
+                                        resolved-resource-path
+                                        "utf-8"
+                                        (fn [err text]
+                                          (resolve-content-and-return! text)))))))
+
+                     ("git")
+                     (fn [directive callback]
+                       (let [resource-spec (sc/parse-link directive)
+                             gra (-> resource-spec
+                                     (:link)
+                                     (git/parse-git-protocol-blob-path))]
+                         (git/resolve-git-resource-address
+                          gra
+                          (fn [full-content]
+                            (some->> (ci/resolve-content resource-spec full-content)
+                                     (assoc resource-spec :text)
+                                     (clj->js)
+                                     (callback nil)))
+                          (fn [_]
+                            (some->> {:status "failed"}
+                                     (clj->js)
+                                     (callback nil))))))
+                   
+                     ("calibre" "zotero")
+                     (fn [directive callback]
+                       (let [resource-spec (sc/parse-link directive)]
+                         (load-by-resource-resolver
+                          resource-spec
+                          callback)))
+
+                     (fn [& _]
+                       (callback nil {:message (str "failed to process directive "
+                                                    directive)})))
+                 
+                   directive callback)))
+  
+    :open (fn [args callback]
+            (let [{:keys [protocol directive]}
+                  (js->clj args :keywordize-keys true)
+                  resource-spec (sc/parse-link directive)
+                  resolved-path (:resource-resolver-path
+                                 resource-spec)
+                  complete-request
+                  (fn [file-path]
+                    (->> {:status (or (when (path-exists? file-path)
+                                        (open-file-natively
+                                         file-path)
+                                        "ok")
+                                      "error")}
+                         (clj->js)
+                         (callback nil)))]
+            
+              (case protocol
+                "calibre"
+                (calibre/find-matching-epub
+                 (str "*" resolved-path "*.epub")
+                 complete-request)
+              
+                "zotero"
+                (zotero/find-matching-file
+                 (str "*" resolved-path "*")
+                 complete-request)
+              
+                ;; generic
+                (complete-request resolved-path))))
+    }))
 
 (defn start-server! []
   (let [app (express)
