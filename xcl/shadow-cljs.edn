@@ -2,9 +2,12 @@
  ["src"]
 
  :dependencies
-  [reagent "0.8.1"]
-  [com.cemerick/url "0.1.1"]]
  [[cider/cider-nrepl "0.25.2"]
+  [cljs-ajax "0.8.0"]
+  [com.cemerick/url "0.1.1"]
+  [mhuebert/shadow-env "0.1.6"]
+  [org.clojure/data.json "1.0.0"]
+  [reagent "0.8.1"]]
 
  ;; connect to the cljs repl from cider:
  ;; (shadow.cljs.devtools.api/nrepl-select :browser-sample)
@@ -23,6 +26,8 @@
                    :devtools
                    {:http-root "public"
                     :http-port 8020}
+
+                   :build-hooks [(shadow-env.core/hook)]
                    }
 
   :node-test {:target :node-library
@@ -39,5 +44,6 @@
 
   :node-webserver {:target :node-script
                    :output-to "build/webserver.js"
+                   :build-hooks [(shadow-env.core/hook)]
                    :main xcl.node-webserver/-main}
   }}

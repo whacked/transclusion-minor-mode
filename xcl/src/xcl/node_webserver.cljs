@@ -21,19 +21,11 @@
     [path-join path-exists? slurp-file]]
    [xcl.calibre-interop :as calibre]
    [xcl.zotero-interop :as zotero]
-   [xcl.git-interop :as git]))
+   [xcl.git-interop :as git]
    [xcl.console :as console]
+   [xcl.env :as env]))
 
-(def $JSONRPC-PORT
-  (let [config-file-path (path-join
-                          (js/process.cwd)"config.json")]
-    (or
-     (when (path-exists? config-file-path)
-       (-> config-file-path
-           (slurp-file)
-           (js/JSON.parse)
-           (aget "jsonrpc-port")))
-     23120)))
+(def $JSONRPC-PORT (env/get :jsonrpc-port))
 
 (def $resource-resolver-loader-mapping
   (atom {:calibre-file
@@ -207,19 +199,20 @@
                                "transports"
                                "server"
                                "middleware")]
-    (js/console.log
-     (str "starting rpc server on port "
-          $JSONRPC-PORT
-          "..."))
     (doto app
       (.use (js-invoke body-parser "json"))
-      (.use "/rpc"
+      (.use (env/get :jsonrpc-endpoint)
             (aget (JrpcServer.
                    (ServerMiddleware.)
                    (clj->js $handler-mapping))
                   "transport"
                   "middleware"))
-      (.listen $JSONRPC-PORT))))
+      (.listen $JSONRPC-PORT
+               (fn []
+                 (js/console.log
+                  (str "starting rpc server on port "
+                       $JSONRPC-PORT
+                       "...")))))))
 
 (defn -main []
   (start-server!))

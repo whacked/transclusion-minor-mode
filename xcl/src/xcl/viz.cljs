@@ -6,7 +6,11 @@
             [xcl.common :refer [get-file-extension]]
             [xcl.content-interop :as ci]
             [xcl.external-js-content :as ext-js]
-            [xcl.external :as ext]))
+            [xcl.external :as ext]
+            [xcl.env :as env]))
+
+(def $JSONRPC-SERVER-ENDPOINT
+  (str "//" (env/get :jsonrpc-host) ":" (env/get :jsonrpc-port) (env/get :jsonrpc-endpoint) "/"))
 
 (swap! sc/$known-protocols
        conj :fakeout)
