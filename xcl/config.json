@@ -1,7 +1,0 @@
-{
-    "jsonrpc-host": "localhost",
-    "jsonrpc-port": 23120,
-    "jsonrpc-endpoint": "/rpc",
-    "overlay-color-base": "papayawhip",
-    "overlay-color-modified": "gold"
-}

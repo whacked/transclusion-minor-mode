@@ -9,6 +9,24 @@ made to work with org-mode files
 
    [[https://i.imgur.com/Zgsfx79.gif]]
 
+* quickstart
+
+after cloning this repo
+
+  #+BEGIN_SRC sh :eval never
+  git submodule init  # pulls ext--json-rpc-request
+  git submodule update
+  #+END_SRC
+
+set up and run the [[https://github.com/whacked/xcl][transclusion server]] somewhere
+
+start emacs and load =xcl-transclude.el=
+
+open this file, =M-x xcl-transclude-mode=, cursor over a transclusion
+directive, and =C-c E=
+
+(functions and key chords are subject to change)
+
 * development setup
 
   assuming you have the [[https://nixos.org/nix/][nix package manager]], clone this repository and
@@ -21,10 +39,11 @@ made to work with org-mode files
 
 ** webserver
 
+   the transclusion engine is a nodejs webserver; see
+   [[https://github.com/whacked/xcl][transclusion server]] for install +
+   setup; launch it from another terminal
+
    #+BEGIN_SRC sh :eval never
-   nix-shell
-   cd xcl
-   npm install
    node build/webserver.js
    #+END_SRC
    
