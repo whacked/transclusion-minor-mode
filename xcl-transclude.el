@@ -412,6 +412,7 @@
                (message "no overlay and no transclusion directive")))))))
 
 (defun xcl-transclude--enable-all-overlays! ()
+  (interactive)
   (save-excursion
     (beginning-of-buffer)
     (while
@@ -421,6 +422,7 @@
       (xcl-transclude-toggle-overlay))))
 
 (defun xcl-transclude--disable-all-overlays! ()
+  (interactive)
   (save-excursion
     (beginning-of-buffer)
     (let ((overlays (ov-all)))
