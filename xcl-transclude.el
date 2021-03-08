@@ -107,6 +107,8 @@
                     "\\(\[^:\]+\s*\\)"
                     re-post)
             directive)
+           ;; TODO revisit this naming scheme, or move this to a constant
+           ;; "file1" is probably supposed to mean "emacs-native file"
            (list :protocol "file1"
                  :target (match-string 1 directive)))
 
@@ -230,6 +232,12 @@
                          ;; other protocols stay as-is
                          target-path))))))
 
+(defun xcl-transclude--slurp-file (file-path)
+  ;; convenience method
+  (with-temp-buffer
+    (insert-file-contents file-path)
+    (buffer-string)))
+
 (defun xcl-transclude--retrieve-content-from-spec (spec)
   ;; (xcl-transclude--retrieve-content-from-spec
   ;;  (parse-transclusion-directive
@@ -246,7 +254,22 @@
   ;; where ... is the rest of the parsed directive
   
   (message "[XCL] retrieving for spec: %s" spec)
-  (xcl-transclude--json-rpc-request "get-text" spec))
+  (let ((xcl-protocol (plist-get spec :protocol)))
+    (cond ((string= "file1" xcl-protocol)
+           ;; (shortcut) handle natively
+           (let ((file-path (plist-get spec :target)))
+             (list
+              :link file-path
+              :post-processors nil
+              :protocol "file1"
+              :resource-resolver-path file-path
+              :resource-resolver-method "exact-name"
+              :content-resolvers [(:type "whole-file")]
+              :text (xcl-transclude--slurp-file file-path))))
+          
+          (t
+           ;; (fallback)
+           (xcl-transclude--json-rpc-request "get-text" spec)))))
 
 (defun xcl-transclude--open-file-from-spec (spec)
   (message "[XCL] opening for spec: %s" spec)
