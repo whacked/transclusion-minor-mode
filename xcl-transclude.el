@@ -203,6 +203,16 @@
 (defun xcl-transclude--json-rpc-request (rpc-command spec)
   (let* ((protocol (plist-get spec :protocol))
          (target-path (plist-get spec :target)))
+    ;; returns shape like
+    ;; (list
+    ;;  :link "file:/path/to/target.org"
+    ;;  :post-processors nil
+    ;;  :protocol "file"
+    ;;  :resource-resolver-path "/path/to/target.org"
+    ;;  :resource-resolver-method "exact-name" :content-resolvers
+    ;;  [(:type "whole-file")]
+    ;;  :text "* example\n\nHello, 世界")
+    
     (json-rpc-request
      (json-rpc-connect XCL-TRANSCLUDE--SERVER-HOST XCL-TRANSCLUDE--SERVER-PORT)
      "/rpc"
