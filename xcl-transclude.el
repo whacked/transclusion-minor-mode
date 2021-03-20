@@ -21,6 +21,7 @@
 (require 'cl-lib)
 (require 'ov)
 (require 'json-rpc)
+
 (load (concat
        default-directory
        ;; git submodule
@@ -51,6 +52,14 @@
 
 (setq xcl-transclude--active-source-file-hash
       (make-hash-table :test 'equal))
+
+
+(defvar-local IPC-TERMINAL-CHARACTER "\x0c")
+(defvar-local XCL-SERVER-NAME "xcl-server")
+(defvar-local XCL-CONNECTION-BUFFER-NAME "*xcl-server*")
+;; from node-ipc's default setup
+(defvar-local IPC-SOCKET-PATH (concat "/tmp/app." XCL-SERVER-NAME))
+
 
 (defun xcl-transclude--add-tracked-overlay (source-file-name target-file-name)
   (let ((current-list (gethash target-file-name
@@ -201,6 +210,36 @@
 
   (defun xcl-transclude--spec-base-object (&rest plist-data)
     (funcall 'xcl-transclude--validate-resource-spec plist-data)))
+
+
+(defun xcl-make-socket-jsonprc-request (method params)
+  ;; (xcl-make-socket-jsonprc-request "echo" (list :hello "world"))
+  (let ((proc (make-network-process
+               :name XCL-SERVER-NAME
+               :buffer XCL-CONNECTION-BUFFER-NAME
+               :remote IPC-SOCKET-PATH)))
+    (let ((response
+           (with-current-buffer (process-buffer proc)
+             (erase-buffer)
+             (process-send-string
+              proc
+              (concat
+               (json-encode
+                (list
+                 :type "jsonrpc"
+                 :data (list
+                        :jsonrpc "2.0"
+                        :id 1 ;; don't care
+                        :method method
+                        :params params)))
+               IPC-TERMINAL-CHARACTER))
+             (accept-process-output proc)
+             (message (buffer-string)))))
+      (delete-process proc)
+      ;; matches configuration in https://github.com/skeeto/elisp-json-rpc/blob/master/json-rpc.el#L154
+      (let* ((json-object-type 'plist)
+             (json-array-type 'keyword))
+        (json-read-from-string response)))))
 
 (defun xcl-transclude--json-rpc-request (rpc-command spec)
   (let* ((protocol (plist-get spec :protocol))
