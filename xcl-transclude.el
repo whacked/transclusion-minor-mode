@@ -59,6 +59,7 @@
 (defvar-local XCL-CONNECTION-BUFFER-NAME "*xcl-server*")
 ;; from node-ipc's default setup
 (defvar-local IPC-SOCKET-PATH (concat "/tmp/app." XCL-SERVER-NAME))
+(defvar XCL-SOCKET-CONNECTION nil)
 
 
 (defun xcl-transclude--add-tracked-overlay (source-file-name target-file-name)
@@ -212,12 +213,20 @@
     (funcall 'xcl-transclude--validate-resource-spec plist-data)))
 
 
+(defun xcl-get-ipc-connection ()
+  (when (or (null XCL-SOCKET-CONNECTION)
+            (not (process-live-p XCL-SOCKET-CONNECTION)))
+    (setq
+     XCL-SOCKET-CONNECTION
+     (make-network-process
+      :name XCL-SERVER-NAME
+      :buffer XCL-CONNECTION-BUFFER-NAME
+      :remote IPC-SOCKET-PATH)))
+  XCL-SOCKET-CONNECTION)
+
 (defun xcl-make-socket-jsonprc-request (method params)
   ;; (xcl-make-socket-jsonprc-request "echo" (list :hello "world"))
-  (let ((proc (make-network-process
-               :name XCL-SERVER-NAME
-               :buffer XCL-CONNECTION-BUFFER-NAME
-               :remote IPC-SOCKET-PATH)))
+  (let ((proc (xcl-get-ipc-connection)))
     (let ((response
            (with-current-buffer (process-buffer proc)
              (erase-buffer)
@@ -235,7 +244,10 @@
                IPC-TERMINAL-CHARACTER))
              (accept-process-output proc)
              (message (buffer-string)))))
-      (delete-process proc)
+      
+      ;; TODO: figure out a better way to manage the process
+      ;; (delete-process proc)
+      
       ;; matches configuration in https://github.com/skeeto/elisp-json-rpc/blob/master/json-rpc.el#L154
       (let* ((json-object-type 'plist)
              (json-array-type 'keyword))
