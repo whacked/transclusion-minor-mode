@@ -22,33 +22,32 @@
 (require 'ov)
 (require 'json-rpc)
 
+(load-file "./xcl-config.el")
 (load (concat
        default-directory
        ;; git submodule
        "ext--json-rpc-request/json-rpc-request"))
 
-(let* ((config-file-path "xcl/config.json")
-       (config (if (file-exists-p config-file-path)
-                   (json-read-file config-file-path)
-                 nil)))
+(setq XCL-TRANSCLUDE--SERVER-HOST
+      ;; TODO: server-side defaults to "localhost"
+      (gethash :jsonrpc-host xcl-config))
 
-  (setq XCL-TRANSCLUDE--SERVER-HOST
-        (or (cdr (assoc 'jsonrpc-host config))
-            "localhost"))
-  
-  (setq XCL-TRANSCLUDE--SERVER-PORT
-        (or (cdr (assoc 'jsonrpc-port config))
-            23120))
+(setq XCL-TRANSCLUDE--SERVER-PORT
+      ;; TODO: server-side defaults to 23120
+      (gethash :jsonrpc-port xcl-config))
 
-  (setq xcl-transclude--overlay-color-base
-        (or (cdr (assoc 'overlay-color-base config))
-            "papayawhip"))
-  
-  (setq xcl-transclude--overlay-color-modified
-        (or (cdr (assoc 'overlay-color-modified config))
-            "gold")))
+(setq xcl-transclude--overlay-color-base
+      ;; TODO: server-side defaults to "papayawhip"
+      ;;       but this is a client-side config
+      (gethash :overlay-color-base xcl-config))
 
-(setq xcl-transclude--transclusion-directive-regexp "{{{transclude(.+?)}}}")
+(setq xcl-transclude--overlay-color-modified
+      ;; TODO: server-side defaults to "gold"
+      ;;       but this is a client-side config
+      (gethash :overlay-color-modified xcl-config))
+
+(setq xcl-transclude--transclusion-directive-regexp
+      "{{{transclude(.+?)}}}")
 
 (setq xcl-transclude--active-source-file-hash
       (make-hash-table :test 'equal))
@@ -268,7 +267,7 @@
     
     (json-rpc-request
      (json-rpc-connect XCL-TRANSCLUDE--SERVER-HOST XCL-TRANSCLUDE--SERVER-PORT)
-     "/rpc"
+     xcl-server-rpc-endpoint
      rpc-command
      (list :protocol protocol
            :directive (concat
